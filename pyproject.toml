@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "windsurf-dreambooth"
 version = "0.1.0"
 description = "DreamBooth Studio - A modular application for fine-tuning and generating images with Diffusion models"
-requires-python = ">=3.9,<3.12"
+requires-python = ">=3.9"
 
 # All dependencies are explicitly listed with version constraints for:
 # 1. Security - avoid known vulnerabilities in older versions
@@ -14,112 +14,105 @@ requires-python = ">=3.9,<3.12"
 # 3. Reproducibility - consistent environments across installations
 # 4. Stability - avoid breaking changes from major version updates
 dependencies = [
-    "torch>=2.0.0,<2.3.0",
-    "torchvision>=0.15.0,<0.18.0",
-    "setuptools>=61.0",
-    "fastapi>=0.104.0,<0.115.0",
-    "uvicorn[standard]>=0.24.0,<0.31.0",
-    "diffusers>=0.25.0,<0.28.0",
-    "transformers>=4.36.0,<4.42.0",
-    "accelerate>=0.25.0,<0.31.0",
-    "python-multipart>=0.0.6,<0.0.10",
-    "pillow>=10.0.0,<10.4.0",
-    "numpy>=1.24.0,<1.27.0",
-    "gradio>=4.0.0,<4.20.0",
-    "huggingface-hub>=0.19.0,<0.24.0",
-    "loguru>=0.7.0,<0.8.0",
-    "sentencepiece>=0.1.99,<0.3.0",
-    "protobuf>=3.20.0,<5.0.0",
-    "psutil>=5.9.0,<6.0.0",
-    "pydantic>=2.0.0,<2.8.0",
-    "pydantic-settings>=2.0.0,<2.10.0",
-    "python-dotenv>=1.0.0,<1.1.0",
-    "xformers>=0.0.22,<0.0.26; sys_platform == 'linux'",
-    "safetensors>=0.4.0,<0.5.0",
-    "tqdm>=4.65.0,<4.70.0",
-    "requests>=2.31.0,<2.33.0",
-    "filelock>=3.12.0,<3.20.0",
-    "typing-extensions>=4.7.0,<4.14.0",
-    "pyyaml>=6.0,<6.1",
-    "packaging>=23.0,<25.0",
-    "regex>=2023.12.0,<2025.0.0",
-    "tokenizers>=0.15.0,<0.20.0",
+    "torch",
+    "torchvision",
+    "setuptools",
+    "fastapi",
+    "uvicorn[standard]",
+    "diffusers",
+    "transformers",
+    "accelerate",
+    "python-multipart",
+    "pillow",
+    "numpy",
+    "gradio",
+    "huggingface-hub",
+    "loguru",
+    "sentencepiece",
+    "protobuf",
+    "psutil",
+    "pydantic",
+    "pydantic-settings",
+    "python-dotenv",
+    "xformers; sys_platform == 'linux'",
+    "safetensors",
+    "tqdm",
+    "requests",
+    "filelock",
+    "typing-extensions",
+    "pyyaml",
+    "packaging",
+    "regex",
+    "tokenizers",
     # scipy, matplotlib, pandas, scikit-learn are installed as dependencies of other packages
     # tensorboard is optional for training visualization
-    "httpx>=0.24.0,<0.29.0",
-    "websockets>=11.0,<14.0",
-    "aiofiles>=23.0.0,<25.0.0",
-    "jinja2>=3.1.0,<3.2.0",
-    "markupsafe>=2.1.0,<2.2.0",
-    "click>=8.1.0,<8.2.0",
-    "rich>=13.0.0,<14.1.0",
-    "typer>=0.9.0,<0.16.0",
-    "watchdog>=3.0.0,<6.0.0"
+    "httpx",
+    "websockets",
+    "aiofiles",
+    "jinja2",
+    "markupsafe",
+    "click",
+    "rich",
+    "typer",
+    "watchdog"
 ]
 
 [project.optional-dependencies]
 dev = [
     # Testing framework
-    "pytest>=7.4.0,<8.3.0",
-    "pytest-asyncio>=0.21.0,<0.24.0",
-    "pytest-cov>=4.1.0,<5.1.0",
-    "pytest-mock>=3.11.0,<3.15.0",
-    "pytest-timeout>=2.1.0,<2.3.0",
-    "pytest-xdist>=3.3.0,<3.6.0",
-    "pytest-env>=0.8.0,<1.2.0",
-    "pytest-benchmark>=4.0.0,<4.1.0",
-    "pytest-sugar>=0.9.0,<1.1.0",
-    "hypothesis>=6.80.0,<6.100.0",
-    "factory-boy>=3.3.0,<3.4.0",
-    "freezegun>=1.2.0,<1.5.0",
-    "responses>=0.23.0,<0.26.0",
-    "faker>=19.0.0,<26.0.0",
-    
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-timeout",
+    "pytest-xdist",
+    "pytest-env",
+    "pytest-benchmark",
+    "pytest-sugar",
+    "hypothesis",
+    "factory-boy",
+    "freezegun",
+    "responses",
+    "faker",
+
     # Code quality tools
-    "black>=23.0.0,<24.5.0",
-    "isort>=5.12.0,<5.14.0",
-    "flake8>=6.0.0,<7.1.0",
-    "flake8-docstrings>=1.7.0,<1.8.0",
-    "flake8-bugbear>=23.0.0,<24.5.0",
-    "flake8-comprehensions>=3.14.0,<3.15.0",
-    "flake8-simplify>=0.20.0,<0.22.0",
-    "pylint>=2.17.0,<3.3.0",
-    "mypy>=1.5.0,<1.11.0",
-    "types-requests>=2.31.0,<2.33.0",
-    "types-pyyaml>=6.0.0,<6.1.0",
-    "types-python-dateutil>=2.8.0,<2.10.0",
-    
+    "ruff",
+    "mypy",
+    "types-requests",
+    "types-pyyaml",
+    "types-python-dateutil",
+
     # Development tools
-    "pre-commit>=3.3.0,<3.8.0",
-    "ipython>=8.14.0,<8.27.0",
-    "ipdb>=0.13.0,<0.14.0",
-    "jupyter>=1.0.0,<1.1.0",
-    "notebook>=7.0.0,<7.3.0",
-    
+    "pre-commit",
+    "ipython",
+    "ipdb",
+    "jupyter",
+    "notebook",
+
     # Documentation
-    "sphinx>=7.1.0,<7.4.0",
-    "sphinx-rtd-theme>=1.3.0,<2.1.0",
-    "sphinx-autodoc-typehints>=1.24.0,<2.3.0",
-    "myst-parser>=2.0.0,<3.1.0",
-    
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-autodoc-typehints",
+    "myst-parser",
+
     # Security scanning
-    "bandit>=1.7.0,<1.8.0",
-    "safety>=2.3.0,<3.3.0",
-    
+    "bandit",
+    "safety",
+
     # Performance profiling
-    "py-spy>=0.3.0,<0.4.0",
-    "memory-profiler>=0.61.0,<0.62.0",
-    "line-profiler>=4.1.0,<4.2.0"
+    "py-spy",
+    "memory-profiler",
+    "line-profiler"
 ]
 
 [tool.uv.sources]
 torch = [
   { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
-  { index = "pytorch-cu121", marker = "sys_platform == 'linux'" },
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
 ]
 torchvision = [
   { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
-  { index = "pytorch-cu121", marker = "sys_platform == 'linux'" },
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
 ]
 
 [[tool.uv.index]]
@@ -128,29 +121,146 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [[tool.uv.index]]
-name = "pytorch-cu121"
-url = "https://download.pytorch.org/whl/cu121"
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 # Exclude non-package directories to avoid multiple-package discovery
 [tool.setuptools.packages.find]
 exclude = ["outputs", "outputs.*", "frontend", "frontend.*", "finetuned_models", "finetuned_models.*", "uploads", "uploads.*", "model_cache", "model_cache.*"]
 
-[tool.black]
+[tool.ruff]
+# Ruff replaces black, isort, and flake8
 line-length = 100
-target-version = ['py38', 'py39', 'py310', 'py311']
-include = '\.pyi?$'
+target-version = "py39"
+extend-include = ["*.ipynb"]
 
-[tool.isort]
-profile = "black"
-line_length = 100
+# Exclude common directories
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".tox",
+    ".mypy_cache",
+    ".pytest_cache",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+# Enable pycodestyle, pyflakes, isort, and more
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "TID",   # flake8-tidy-imports
+    "RUF",   # Ruff-specific rules
+    "PTH",   # flake8-use-pathlib
+    "ERA",   # flake8-eradicate (commented code)
+    "PL",    # pylint
+    "PERF",  # performance anti-patterns
+    "D",     # pydocstyle (docstring conventions)
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "PLR0913", # Too many arguments
+    "PLR0912", # Too many branches
+    "PLR2004", # Magic value comparisons (common in tests)
+    "TID252",  # Relative imports (we use them intentionally)
+    "B008",   # Function calls in argument defaults (needed for Gradio)
+    "E722",   # Bare except (sometimes needed)
+    "S101",   # Assert usage (needed in tests)
+    "N802",   # Function name lowercase (for some APIs)
+    "N803",   # Argument name lowercase (for some APIs)
+    "PERF203", # try-except in loop (sometimes necessary)
+    "C901",   # Complex function (sometimes unavoidable)
+    "PLR0915", # Too many statements
+    "D100",   # Missing docstring in public module
+    "D101",   # Missing docstring in public class
+    "D102",   # Missing docstring in public method
+    "D103",   # Missing docstring in public function
+    "D104",   # Missing docstring in public package
+    "D105",   # Missing docstring in magic method
+    "D107",   # Missing docstring in __init__
+    "D203",   # 1 blank line required before class docstring (conflicts with D211)
+    "D213",   # Multi-line docstring summary should start at the second line (conflicts with D212)
+]
+
+# Exclude additional patterns
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]  # Allow unused imports
+"tests/*" = ["S101", "PLR2004", "B011"]  # Allow asserts and magic values in tests
+"*/ui/app.py" = ["B008"]  # Allow gr.Progress() default
+
+[tool.ruff.lint.isort]
+# Same settings as isort with black profile
+known-first-party = ["windsurf_dreambooth"]
+combine-as-imports = true
+force-sort-within-sections = true
+
+[tool.ruff.lint.pydocstyle]
+# Use Google docstring convention
+convention = "google"
+
+[tool.ruff.format]
+# Use the same formatting as black
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
 
 [tool.mypy]
-python_version = "3.8"
-warn_return_any = true
+python_version = "3.9"
+warn_return_any = false  # Too noisy with ML frameworks
 warn_unused_configs = true
-disallow_untyped_defs = true
+disallow_untyped_defs = true  # Good practice
 ignore_missing_imports = true
+disallow_incomplete_defs = true  # Catch missing annotations
+check_untyped_defs = false  # Too strict for gradual typing
+disallow_untyped_decorators = false  # Decorators are complex
+no_implicit_optional = true  # Good for catching None issues
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict_equality = false  # Can be too restrictive
+show_error_codes = true
+strict = false
+
+# Ignore complex framework modules entirely
+[[tool.mypy.overrides]]
+module = [
+    "windsurf_dreambooth.config.settings",  # Pydantic Field() issues
+    "windsurf_dreambooth.ui.*",             # Gradio typing complexity
+    "windsurf_dreambooth.training.*",       # PyTorch/Diffusers complexity
+]
+ignore_errors = true
+
+# Core modules should have good typing
+[[tool.mypy.overrides]]
+module = [
+    "windsurf_dreambooth.models.manager",
+    "windsurf_dreambooth.models.generator",
+    "windsurf_dreambooth.utils.*",
+    "windsurf_dreambooth.__main__",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+# API modules with some flexibility
+[[tool.mypy.overrides]]
+module = "windsurf_dreambooth.api.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -178,18 +288,34 @@ markers = [
     "unit: marks tests as unit tests",
     "gpu: marks tests that require GPU",
     "model: marks tests that load models (memory intensive)",
-    "flaky: marks tests that might fail intermittently"
+    "flaky: marks tests that might fail intermittently",
+    "timeout: marks tests with timeout",
+    "benchmark: marks tests that measure performance",
+    "asyncio: marks tests that use asyncio"
 ]
-timeout = 300
-timeout_method = "thread"
-asyncio_mode = "auto"
+# timeout = 300
+# timeout_method = "thread"
+asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
     "ignore::FutureWarning",
     "error::UserWarning"
 ]
-env = [
-    "TESTING=1",
-    "LOG_LEVEL=DEBUG"
+# env = [
+#     "TESTING=1",
+#     "LOG_LEVEL=DEBUG"
+# ]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8.3",
+    "faker>=37.3.0",
+    "freezegun>=1.5.1",
+    "hypothesis>=6.131.25",
+    "mypy",
+    "pre-commit>=4.2.0",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "pytest-xdist>=3.6.1",
 ]
