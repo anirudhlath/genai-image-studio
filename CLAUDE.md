@@ -25,6 +25,14 @@ python -m windsurf_dreambooth
 # Run tests
 uv run pytest
 uv run pytest --cov=windsurf_dreambooth
+make test-fast  # Run tests excluding slow ones
+make test-parallel  # Run tests in parallel
+
+# Linting and formatting
+make lint  # Run flake8, pylint, and mypy
+make format  # Format with black and isort
+uv run ruff check .  # Fast linting
+uv run ruff check --fix .  # Auto-fix linting issues
 
 # Demo progress indicators
 uv run python demo_progress.py
@@ -81,6 +89,25 @@ The application supports multiple diffusion model types defined in `config/const
 - All file uploads are validated and sanitized for security
 - Training includes checkpoint saving and resume capabilities
 - API endpoints support real-time progress updates via polling
+
+## Testing Infrastructure
+
+The project includes comprehensive testing with 40+ dev dependencies:
+- **pytest** with markers for slow, gpu, integration, unit, flaky tests
+- **hypothesis** for property-based testing
+- **pytest-mock** and **factory-boy** for mocking and fixtures
+- **pytest-xdist** for parallel test execution
+- **pytest-benchmark** for performance testing
+- **freezegun** and **faker** for test data generation
+
+## Security Features
+
+- JWT-based authentication for API endpoints
+- Rate limiting and request validation
+- Input sanitization in dataset handling
+- Non-root Docker container execution
+- Environment-based configuration with pydantic-settings
+- Security scanning with bandit and safety
 
 ## Progress Indicators
 
