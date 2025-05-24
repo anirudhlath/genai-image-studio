@@ -276,6 +276,20 @@ class DreamBoothManager:
         model_id = str(local_path) if local_path.exists() else model_name
 
         try:
+            # Clear CUDA cache before loading to ensure maximum available memory
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+
+                # Report memory status before loading
+                free_memory = (
+                    torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_allocated()
+                )
+                total_memory = torch.cuda.get_device_properties(0).total_memory
+                logger.info(
+                    f"CUDA memory before loading: {free_memory / 1e9:.2f}GB free / {total_memory / 1e9:.2f}GB total"
+                )
+
             # Load pipeline
             use_safetensors = settings.use_safetensors
             logger.info("\nStarting model loading process...")
@@ -372,6 +386,18 @@ class DreamBoothManager:
 
             # Update legacy cache for compatibility
             self._models[model_name] = pipeline
+
+            # Report memory status after loading
+            if torch.cuda.is_available():
+                allocated_memory = torch.cuda.memory_allocated() / 1e9
+                reserved_memory = torch.cuda.memory_reserved() / 1e9
+                free_memory = (
+                    torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_allocated()
+                )
+                logger.info("\nCUDA memory after loading:")
+                logger.info(f"  - Allocated: {allocated_memory:.2f}GB")
+                logger.info(f"  - Reserved: {reserved_memory:.2f}GB")
+                logger.info(f"  - Free: {free_memory / 1e9:.2f}GB")
 
             logger.info("\n" + "=" * 60)
             logger.info("MODEL LOADING COMPLETE")

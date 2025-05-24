@@ -9,6 +9,8 @@ from faker import Faker
 from hypothesis import strategies as st
 import pytest
 
+pytest_plugins = ["pytest_mock", "pytest_benchmark"]
+
 # Initialize faker
 fake = Faker()
 
