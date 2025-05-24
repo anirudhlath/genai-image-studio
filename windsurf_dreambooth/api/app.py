@@ -1,21 +1,18 @@
 """FastAPI application for REST API endpoints."""
 
-import asyncio
-import os
-import shutil
-import tempfile
-import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+import shutil
+from typing import Optional
+import uuid
 
-import torch
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
+import torch
 
-from ..config.constants import PIPELINE_TYPES, SCHEDULERS, SUPPORTED_MODELS
+from ..config.constants import SUPPORTED_MODELS
 from ..models.generator import ImageGenerator
 from ..models.manager import DreamBoothManager
 from ..training.trainer import DreamBoothTrainer
@@ -36,11 +33,11 @@ app.add_middleware(
 
 # Global state
 model_manager = DreamBoothManager()
-active_training_tasks = {}
+active_training_tasks: dict[str, dict] = {}
 UPLOAD_DIR = Path("./uploads")
 OUTPUT_DIR = Path("./outputs")
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # Pydantic models
@@ -105,12 +102,13 @@ async def list_models():
     models = []
     for model_name in SUPPORTED_MODELS:
         # Determine appropriate pipeline type based on model name
-        if model_name == "custom":
-            pipeline_type = "Generic"
-        elif "xl" in model_name:
-            pipeline_type = "StableDiffusionXL"
-        else:
-            pipeline_type = "StableDiffusion"
+        pipeline_type = (
+            "Generic"
+            if model_name == "custom"
+            else "StableDiffusionXL"
+            if "xl" in model_name
+            else "StableDiffusion"
+        )
 
         loaded = model_name in model_manager._models
         models.append(ModelInfo(name=model_name, pipeline_type=pipeline_type, loaded=loaded))
@@ -118,7 +116,7 @@ async def list_models():
 
 
 @app.post("/upload-images/")
-async def upload_images(files: List[UploadFile] = File(...)):
+async def upload_images(files: list[UploadFile] = File(...)):
     """Upload training images."""
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
@@ -126,8 +124,10 @@ async def upload_images(files: List[UploadFile] = File(...)):
     # Validate files
     allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
     for file in files:
-        ext = Path(file.filename).suffix.lower()
-        if ext not in allowed_extensions:
+        if file.filename is None:
+            raise HTTPException(status_code=400, detail="File has no filename")
+        ext = file.filename.split(".")[-1].lower() if "." in file.filename else ""
+        if f".{ext}" not in allowed_extensions:
             raise HTTPException(
                 status_code=400,
                 detail=f"File {file.filename} has unsupported extension. Allowed: {allowed_extensions}",
@@ -142,8 +142,10 @@ async def upload_images(files: List[UploadFile] = File(...)):
     saved_files = []
     try:
         for file in files:
+            if file.filename is None:
+                continue
             file_path = session_dir / file.filename
-            with open(file_path, "wb") as f:
+            with file_path.open("wb") as f:
                 content = await file.read()
                 f.write(content)
             saved_files.append(str(file_path))
@@ -151,12 +153,12 @@ async def upload_images(files: List[UploadFile] = File(...)):
     except Exception as e:
         # Cleanup on error
         shutil.rmtree(session_dir, ignore_errors=True)
-        raise HTTPException(status_code=500, detail=f"Failed to save files: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save files: {e!s}") from e
 
     return {"session_id": session_id, "files": saved_files, "count": len(saved_files)}
 
 
-async def train_model_task(task_id: str, session_id: str, request: TrainRequest):
+async def train_model_task(task_id: str, session_id: str, request: TrainRequest) -> None:
     """Background task for model training."""
     training_status = active_training_tasks[task_id]
     training_status["status"] = "running"
@@ -164,7 +166,7 @@ async def train_model_task(task_id: str, session_id: str, request: TrainRequest)
     try:
         # Get training images
         session_dir = UPLOAD_DIR / session_id
-        if not session_dir.exists():
+        if not session_dir.is_dir():
             raise ValueError(f"Session {session_id} not found")
 
         image_paths = list(session_dir.glob("*"))
@@ -186,12 +188,14 @@ async def train_model_task(task_id: str, session_id: str, request: TrainRequest)
         )
 
         # Train with progress callback
-        def progress_callback(step, total_steps):
+        def progress_callback(step: int, total_steps: int) -> None:
             progress = step / total_steps
             training_status["progress"] = progress
             training_status["message"] = f"Training step {step}/{total_steps}"
 
-        trainer.train(instance_images=image_paths, progress_callback=progress_callback)
+        trainer.train(
+            instance_images=[str(p) for p in image_paths], progress_callback=progress_callback
+        )
 
         # Success
         training_status["status"] = "completed"
@@ -200,7 +204,7 @@ async def train_model_task(task_id: str, session_id: str, request: TrainRequest)
         training_status["progress"] = 1.0
 
     except Exception as e:
-        logger.error(f"Training failed for task {task_id}: {str(e)}")
+        logger.error(f"Training failed for task {task_id}: {e!s}")
         training_status["status"] = "failed"
         training_status["error"] = str(e)
         training_status["completed_at"] = datetime.now()
@@ -228,12 +232,12 @@ async def train_model(
     """Start model training."""
     # Validate session
     session_dir = UPLOAD_DIR / session_id
-    if not session_dir.exists():
+    if not session_dir.is_dir():
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Create training request
     request = TrainRequest(
-        model_name=base_model,
+        base_model=base_model,
         instance_prompt=instance_prompt,
         class_prompt=class_prompt,
         num_train_steps=num_train_steps,
@@ -261,16 +265,16 @@ async def train_model(
     # Start background task
     background_tasks.add_task(train_model_task, task_id, session_id, request)
 
-    return TrainingStatus(**training_status)
+    return training_status
 
 
 @app.get("/training-status/{task_id}")
-async def get_training_status(task_id: str):
+async def get_training_status(task_id: str) -> dict:
     """Get training task status."""
     if task_id not in active_training_tasks:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    return TrainingStatus(**active_training_tasks[task_id])
+    return active_training_tasks[task_id]
 
 
 @app.post("/generate/")
@@ -283,17 +287,18 @@ async def generate_images(request: GenerateRequest):
         )
 
         # Initialize generator
-        generator = ImageGenerator(model_manager)
+        generator = ImageGenerator()
 
         # Generate images
         images = generator.generate(
+            model_id=request.base_model,
             prompt=request.prompt,
             negative_prompt=request.negative_prompt,
             num_inference_steps=request.num_inference_steps,
             guidance_scale=request.guidance_scale,
             num_images=request.num_images,
-            width=request.width,
-            height=request.height,
+            width=request.width or 512,
+            height=request.height or 512,
             seed=request.seed,
             scheduler=request.scheduler,
         )
@@ -302,43 +307,44 @@ async def generate_images(request: GenerateRequest):
         output_paths = []
         batch_id = str(uuid.uuid4())
         batch_dir = OUTPUT_DIR / batch_id
-        batch_dir.mkdir(exist_ok=True)
+        batch_dir.mkdir(parents=True, exist_ok=True)
 
-        for i, image in enumerate(images):
+        for i, image_path in enumerate(images):
             filename = f"image_{i}.png"
             filepath = batch_dir / filename
-            image.save(filepath)
+            # Copy the generated image to our output directory
+            shutil.copy2(image_path, filepath)
             output_paths.append(f"/outputs/{batch_id}/{filename}")
 
         return {"batch_id": batch_id, "images": output_paths, "count": len(images)}
 
     except Exception as e:
-        logger.error(f"Generation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Generation failed: {e!s}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/outputs/{batch_id}/{filename}")
 async def get_output_image(batch_id: str, filename: str):
     """Serve generated images."""
     # Validate path to prevent traversal
-    if ".." in batch_id or ".." in filename:
+    if any(".." in part for part in (batch_id, filename)):
         raise HTTPException(status_code=400, detail="Invalid path")
 
     filepath = OUTPUT_DIR / batch_id / filename
-    if not filepath.exists():
+    if not filepath.is_file():
         raise HTTPException(status_code=404, detail="Image not found")
 
     return FileResponse(filepath, media_type="image/png")
 
 
 @app.delete("/outputs/{batch_id}")
-async def delete_output_batch(batch_id: str):
+async def delete_output_batch(batch_id: str) -> dict:
     """Delete generated image batch."""
     if ".." in batch_id:
         raise HTTPException(status_code=400, detail="Invalid batch ID")
 
     batch_dir = OUTPUT_DIR / batch_id
-    if batch_dir.exists():
+    if batch_dir.is_dir():
         shutil.rmtree(batch_dir)
         return {"message": "Batch deleted"}
 
@@ -346,10 +352,10 @@ async def delete_output_batch(batch_id: str):
 
 
 @app.post("/clear-cache")
-async def clear_model_cache():
+async def clear_model_cache() -> dict:
     """Clear model cache."""
     try:
         model_manager.clear_cache()
         return {"message": "Cache cleared successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

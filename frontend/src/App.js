@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Container, 
-  Typography, 
-  Box, 
-  Button, 
-  TextField, 
-  Grid, 
-  Paper, 
+import {
+  Container,
+  Typography,
+  Box,
+  Button,
+  TextField,
+  Grid,
+  Paper,
   CircularProgress,
   LinearProgress,
   Alert,
@@ -26,10 +26,10 @@ import {
   Fade,
   Grow
 } from '@mui/material';
-import { 
-  Upload, 
-  Delete, 
-  CheckCircle, 
+import {
+  Upload,
+  Delete,
+  CheckCircle,
   Error,
   CloudUpload,
   Psychology,
@@ -53,17 +53,17 @@ function App() {
   const [prompt, setPrompt] = useState('');
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
-  
+
   // Loading states
   const [isUploading, setIsUploading] = useState(false);
   const [isTraining, setIsTraining] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
-  
+
   // UI state
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   const [uploadProgress, setUploadProgress] = useState(0);
-  
+
   // Generation parameters
   const [generationParams, setGenerationParams] = useState({
     num_inference_steps: 50,
@@ -72,7 +72,7 @@ function App() {
     negative_prompt: '',
     seed: null
   });
-  
+
   // Training parameters
   const [trainingParams, setTrainingParams] = useState({
     model_name: 'stabilityai/stable-diffusion-xl-base-1.0',
@@ -94,14 +94,14 @@ function App() {
       try {
         const response = await axios.get(`/training-status/${taskID}`);
         const status = response.data;
-        
+
         setTrainingStatus(status.status);
         setTrainingProgress(status.progress * 100);
-        
+
         if (status.status === 'completed' || status.status === 'failed') {
           setIsTraining(false);
           clearInterval(interval);
-          
+
           if (status.status === 'completed') {
             showNotification('Training completed successfully!', 'success');
             loadModels(); // Reload models to include new one
@@ -139,7 +139,7 @@ function App() {
   const handleUpload = async (acceptedFiles) => {
     setIsUploading(true);
     setUploadProgress(0);
-    
+
     const formData = new FormData();
     acceptedFiles.forEach((file) => {
       formData.append('files', file);
@@ -155,7 +155,7 @@ function App() {
           setUploadProgress(percentCompleted);
         },
       });
-      
+
       setSessionID(response.data.session_id);
       setUploadedImages(acceptedFiles.map(file => ({
         name: file.name,
@@ -172,17 +172,17 @@ function App() {
 
   const handleTrain = async () => {
     if (!sessionID) return;
-    
+
     setIsTraining(true);
     setTrainingProgress(0);
-    
+
     const formData = new FormData();
     formData.append('session_id', sessionID);
     formData.append('model_name', trainingParams.model_name);
     formData.append('instance_prompt', trainingParams.instance_prompt);
     formData.append('num_train_steps', trainingParams.num_train_steps);
     formData.append('learning_rate', trainingParams.learning_rate);
-    
+
     try {
       const response = await axios.post('/train-model/', formData);
       setTaskID(response.data.task_id);
@@ -196,17 +196,17 @@ function App() {
 
   const handleGenerate = async () => {
     if (!prompt || !selectedModel) return;
-    
+
     setIsGenerating(true);
     setGeneratedImages([]);
-    
+
     try {
       const response = await axios.post('/generate/', {
         prompt: prompt,
         model_name: selectedModel,
         ...generationParams
       });
-      
+
       const imageUrls = response.data.images.map(path => path);
       setGeneratedImages(imageUrls);
       showNotification(`Generated ${response.data.count} images`, 'success');
@@ -241,7 +241,7 @@ function App() {
                 <CloudUpload sx={{ mr: 1 }} />
                 <Typography variant="h5">Upload Training Images</Typography>
               </Box>
-              
+
               <Dropzone onDrop={handleUpload} disabled={isUploading}>
                 {({ getRootProps, getInputProps, isDragActive }) => (
                   <Box

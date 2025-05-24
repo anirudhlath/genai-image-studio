@@ -1,8 +1,7 @@
-"""
-Image generation functionality using diffusion models
-"""
+"""Image generation functionality using diffusion models."""
 
-from typing import List, Optional
+from pathlib import Path
+from typing import Optional
 
 import torch
 
@@ -10,9 +9,8 @@ from ..config.constants import SCHEDULER_MAPPING
 from ..utils.logging import logger
 
 
-def estimate_time(steps, batch_size, width, height, precision):
-    """
-    Estimate the time required for image generation
+def estimate_time(steps: int, batch_size: int, width: int, height: int, precision: str) -> str:
+    """Estimate the time required for image generation.
 
     Args:
         steps: Number of inference steps
@@ -30,7 +28,7 @@ def estimate_time(steps, batch_size, width, height, precision):
     # Calculate multipliers based on parameters
     size_multiplier = (width * height) / (512 * 512)
     precision_multiplier = 1.0
-    if precision == "f32" or precision == "bf32":
+    if precision in ("f32", "bf32"):
         precision_multiplier = 1.5
 
     # Estimate total time in seconds
@@ -42,14 +40,13 @@ def estimate_time(steps, batch_size, width, height, precision):
     if estimated_time < 60:
         return f"Estimated time: {estimated_time:.1f} seconds"
     elif estimated_time < 3600:
-        return f"Estimated time: {estimated_time/60:.1f} minutes"
+        return f"Estimated time: {estimated_time / 60:.1f} minutes"
     else:
-        return f"Estimated time: {estimated_time/3600:.1f} hours"
+        return f"Estimated time: {estimated_time / 3600:.1f} hours"
 
 
-def get_max_steps(model_key, precision, current_steps):
-    """
-    Determine maximum recommended steps based on model and precision
+def get_max_steps(model_key: str, precision: str, current_steps: int) -> int:
+    """Determine maximum recommended steps based on model and precision.
 
     Args:
         model_key: Model key or ID
@@ -76,7 +73,7 @@ def get_max_steps(model_key, precision, current_steps):
     return min(current_steps, max_steps)
 
 
-def generate_image(
+def generate_image(  # type: ignore
     model_key,
     custom_model,
     subject_name,
@@ -92,8 +89,7 @@ def generate_image(
     seed,
     cpu_offload,
 ):
-    """
-    Generate images using the specified model and parameters
+    """Generate images using the specified model and parameters.
 
     Args:
         model_key: Key of the model to use or "custom" for custom_model
@@ -114,7 +110,6 @@ def generate_image(
     Returns:
         List of generated image paths
     """
-    import os
     import uuid
 
     from ..models.manager import DreamBoothManager
@@ -128,10 +123,7 @@ def generate_image(
             return []
 
         # Determine the model to use
-        if model_key == "custom" and custom_model:
-            model_id = custom_model
-        else:
-            model_id = model_key
+        model_id = custom_model if model_key == "custom" and custom_model else model_key
 
         if not model_id:
             logger.error("No model selected")
@@ -181,7 +173,7 @@ def generate_image(
         )
 
         # Save the images
-        os.makedirs("outputs", exist_ok=True)
+        Path("outputs").mkdir(parents=True, exist_ok=True)
         image_paths = []
 
         for i, image in enumerate(output.images):
@@ -193,15 +185,15 @@ def generate_image(
         return image_paths
 
     except Exception as e:
-        logger.error(f"Generation failed: {str(e)}")
+        logger.error(f"Generation failed: {e!s}")
         return []
 
 
 class ImageGenerator:
-    """Image generation class for the API"""
+    """Image generation class for the API."""
 
-    def __init__(self):
-        """Initialize the image generator"""
+    def __init__(self) -> None:
+        """Initialize the image generator."""
         from ..models.manager import DreamBoothManager
 
         self.manager = DreamBoothManager()
@@ -220,9 +212,8 @@ class ImageGenerator:
         scheduler: Optional[str] = None,
         precision: str = "f16",
         cpu_offload: bool = False,
-    ) -> List[str]:
-        """
-        Generate images using the specified model and parameters
+    ) -> list[str]:
+        """Generate images using the specified model and parameters.
 
         Args:
             model_id: Model ID to use for generation

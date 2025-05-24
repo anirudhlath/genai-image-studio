@@ -61,18 +61,19 @@ test-profile:
 
 # Code quality targets
 lint:
-	uv run flake8 windsurf_dreambooth tests
-	uv run pylint windsurf_dreambooth
+	uv run ruff check windsurf_dreambooth tests
 	uv run mypy windsurf_dreambooth
 
 lint-fix:
-	uv run black windsurf_dreambooth tests
-	uv run isort windsurf_dreambooth tests
-	uv run flake8 windsurf_dreambooth tests --extend-ignore=E203,W503
+	uv run ruff check --fix windsurf_dreambooth tests
+	uv run ruff format windsurf_dreambooth tests
 
 format:
-	uv run black windsurf_dreambooth tests
-	uv run isort windsurf_dreambooth tests
+	uv run ruff format windsurf_dreambooth tests
+
+ruff:
+	uv run ruff check --fix windsurf_dreambooth tests
+	uv run ruff format windsurf_dreambooth tests
 
 type-check:
 	uv run mypy windsurf_dreambooth --install-types --non-interactive

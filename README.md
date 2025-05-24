@@ -11,21 +11,21 @@ A modular web application that allows users to train custom Diffusion models usi
   - Mixed precision training (fp16/bf16)
   - Checkpoint saving and resume capabilities
   - Prior preservation loss support
-  
+
 - **Image Generation**
   - REST API and Gradio UI interfaces
   - Batch generation support
   - Multiple scheduler options
   - Flexible precision settings
   - CPU offload for low-memory systems
-  
+
 - **Performance & Security**
   - LRU model caching with memory-aware eviction
   - Automatic GPU memory management
   - Rate limiting and API key authentication
   - Input validation and sanitization
   - Security headers and CORS support
-  
+
 - **Developer Experience**
   - Comprehensive configuration via environment variables
   - Extensive logging and error handling

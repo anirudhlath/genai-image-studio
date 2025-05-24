@@ -1,9 +1,7 @@
 """Tests for authentication and security."""
 
-from unittest.mock import patch
-
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from windsurf_dreambooth.api.auth import (
     RateLimitMiddleware,
@@ -18,17 +16,17 @@ class TestFileSecurity:
 
     def test_validate_file_path_valid(self):
         """Test valid file paths."""
-        assert validate_file_path("image.jpg") == True
-        assert validate_file_path("folder/image.png") == True
-        assert validate_file_path("deep/nested/path/file.txt") == True
+        assert validate_file_path("image.jpg") is True
+        assert validate_file_path("folder/image.png") is True
+        assert validate_file_path("deep/nested/path/file.txt") is True
 
     def test_validate_file_path_invalid(self):
         """Test invalid file paths."""
-        assert validate_file_path("../etc/passwd") == False
-        assert validate_file_path("/etc/passwd") == False
-        assert validate_file_path("path/../../sensitive") == False
-        assert validate_file_path("file;rm -rf /") == False
-        assert validate_file_path("file$(whoami)") == False
+        assert validate_file_path("../etc/passwd") is False
+        assert validate_file_path("/etc/passwd") is False
+        assert validate_file_path("path/../../sensitive") is False
+        assert validate_file_path("file;rm -rf /") is False
+        assert validate_file_path("file$(whoami)") is False
 
     def test_sanitize_filename(self):
         """Test filename sanitization."""

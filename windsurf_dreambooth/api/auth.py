@@ -1,7 +1,6 @@
 """Authentication and security middleware."""
 
 import secrets
-from typing import Optional
 
 from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
@@ -43,13 +42,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.calls = calls
         self.window = window
-        self.requests = {}
+        self.requests: dict = {}
 
     async def dispatch(self, request: Request, call_next):
         import time
 
         # Get client IP
-        client_ip = request.client.host
+        client_ip = request.client.host if request.client else "unknown"
         current_time = time.time()
 
         # Clean old entries
@@ -78,7 +77,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     },
                 )
 
-            self.requests[client_ip] = recent_requests + [current_time]
+            self.requests[client_ip] = [*recent_requests, current_time]
         else:
             self.requests[client_ip] = [current_time]
 
@@ -121,7 +120,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 def validate_file_path(path: str) -> bool:
     """Validate file path to prevent directory traversal."""
     import os
-    from pathlib import Path
 
     # Normalize the path
     normalized = os.path.normpath(path)
@@ -132,16 +130,13 @@ def validate_file_path(path: str) -> bool:
 
     # Additional checks
     forbidden_chars = ["~", "|", "&", ";", "$", "(", ")", "`", "<", ">"]
-    if any(char in path for char in forbidden_chars):
-        return False
-
-    return True
+    return not any(char in path for char in forbidden_chars)
 
 
 def sanitize_filename(filename: str) -> str:
     """Sanitize filename to prevent security issues."""
-    import re
     from pathlib import Path
+    import re
 
     # Get just the filename without path
     filename = Path(filename).name
@@ -155,7 +150,8 @@ def sanitize_filename(filename: str) -> str:
     # Limit length
     max_length = 255
     if len(sanitized) > max_length:
-        name, ext = os.path.splitext(sanitized)
+        path = Path(sanitized)
+        name, ext = path.stem, path.suffix
         sanitized = name[: max_length - len(ext)] + ext
 
     return sanitized or "unnamed"

@@ -1,5 +1,5 @@
-"""
-Windsurf DreamBooth Application
+"""Windsurf DreamBooth Application.
+
 ===============================
 
 A modular application for fine-tuning and generating images with Diffusion models.

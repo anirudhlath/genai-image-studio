@@ -1,16 +1,12 @@
-"""
-Model management functionality for loading, saving, and deleting models with improved caching.
-"""
+"""Model management functionality for loading, saving, and deleting models with improved caching."""
 
+from collections import OrderedDict
 import gc
-import os
+from pathlib import Path
 import shutil
 import time
-from collections import OrderedDict
-from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
-import psutil
 import torch
 
 from ..config.constants import FINETUNED_MODELS_DIR, PIPELINE_MAPPING
@@ -24,8 +20,7 @@ class ModelCache:
     """LRU cache for model pipelines with memory-aware eviction."""
 
     def __init__(self, max_size: int = 3, memory_threshold: float = 0.9):
-        """
-        Initialize model cache.
+        """Initialize model cache.
 
         Args:
             max_size: Maximum number of models to cache
@@ -33,9 +28,9 @@ class ModelCache:
         """
         self.max_size = max_size
         self.memory_threshold = memory_threshold
-        self.cache = OrderedDict()
-        self.access_times = {}
-        self.model_sizes = {}
+        self.cache: OrderedDict = OrderedDict()
+        self.access_times: dict = {}
+        self.model_sizes: dict = {}
 
     def _get_gpu_memory_usage(self) -> float:
         """Get current GPU memory usage as a fraction."""
@@ -49,7 +44,7 @@ class ModelCache:
         except Exception:
             return 0.0
 
-    def _estimate_model_size(self, pipeline) -> float:
+    def _estimate_model_size(self, pipeline: object) -> float:
         """Estimate model size in GB."""
         total_size = 0
 
@@ -62,7 +57,7 @@ class ModelCache:
 
         return total_size / (1024**3)  # Convert to GB
 
-    def get(self, key: str):
+    def get(self, key: str) -> Optional[object]:
         """Get model from cache, updating access order."""
         if key in self.cache:
             # Move to end (most recently used)
@@ -71,7 +66,7 @@ class ModelCache:
             return self.cache[key]
         return None
 
-    def put(self, key: str, pipeline):
+    def put(self, key: str, pipeline: object) -> None:
         """Add model to cache with memory-aware eviction."""
         # Check if we need to evict based on memory usage
         memory_usage = self._get_gpu_memory_usage()
@@ -91,7 +86,7 @@ class ModelCache:
 
         logger.info(f"Cached model {key} (size: {self.model_sizes[key]:.2f} GB)")
 
-    def _evict_oldest(self):
+    def _evict_oldest(self) -> None:
         """Evict the least recently used model."""
         if not self.cache:
             return
@@ -100,14 +95,14 @@ class ModelCache:
         oldest_key = next(iter(self.cache))
         self._evict(oldest_key)
 
-    def _evict_until_memory_available(self):
+    def _evict_until_memory_available(self) -> None:
         """Evict models until GPU memory usage is below threshold."""
         while self.cache and self._get_gpu_memory_usage() > self.memory_threshold * 0.9:
             # Evict oldest model
             oldest_key = next(iter(self.cache))
             self._evict(oldest_key)
 
-    def _evict(self, key: str):
+    def _evict(self, key: str) -> None:
         """Evict a specific model from cache."""
         if key not in self.cache:
             return
@@ -127,7 +122,7 @@ class ModelCache:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear entire cache."""
         logger.info("Clearing model cache")
         self.cache.clear()
@@ -138,7 +133,7 @@ class ModelCache:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         """Get cache information."""
         return {
             "size": len(self.cache),
@@ -150,11 +145,9 @@ class ModelCache:
 
 
 class DreamBoothManager:
-    """
-    Manager class for DreamBooth models with improved caching and memory management.
-    """
+    """Manager class for DreamBooth models with improved caching and memory management."""
 
-    def __init__(self, max_cache_size: int = None):
+    def __init__(self, max_cache_size: Optional[int] = None):
         """Initialize the model manager with device detection and model cache."""
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -163,7 +156,7 @@ class DreamBoothManager:
         self.cache = ModelCache(max_size=max_cache_size)
 
         # Legacy compatibility
-        self._models = {}  # For backward compatibility
+        self._models: dict = {}  # For backward compatibility
 
         logger.info(f"DreamBoothManager initialized with device {self.device}")
         logger.info(f"Model cache size: {max_cache_size}")
@@ -177,9 +170,8 @@ class DreamBoothManager:
         enable_attention_slicing: bool = True,
         enable_vae_slicing: bool = True,
         enable_vae_tiling: bool = False,
-    ):
-        """
-        Load a model with enhanced memory management and caching.
+    ) -> object:
+        """Load a model with enhanced memory management and caching.
 
         Args:
             model_name: Model name or HuggingFace model ID
@@ -269,17 +261,34 @@ class DreamBoothManager:
             return pipeline
 
         except Exception as e:
-            logger.error(f"Error loading model {model_name}: {str(e)}")
+            logger.error(f"Error loading model {model_name}: {e!s}")
             raise
 
-    def load(self, *args, **kwargs):
+    def load(
+        self,
+        model_name: str,
+        pipeline_type: str = "Generic",
+        precision: str = "f16",
+        use_cpu_offload: bool = False,
+        enable_attention_slicing: bool = True,
+        enable_vae_slicing: bool = True,
+        enable_vae_tiling: bool = False,
+    ) -> object:
         """Legacy method for backward compatibility."""
-        return self.load_model(*args, **kwargs)
+        return self.load_model(
+            model_name=model_name,
+            pipeline_type=pipeline_type,
+            precision=precision,
+            use_cpu_offload=use_cpu_offload,
+            enable_attention_slicing=enable_attention_slicing,
+            enable_vae_slicing=enable_vae_slicing,
+            enable_vae_tiling=enable_vae_tiling,
+        )
 
-    def unload_model(self, model_name: str):
+    def unload_model(self, model_name: str) -> None:
         """Unload a specific model from cache."""
         # Remove from cache
-        keys_to_remove = [k for k in self.cache.cache.keys() if k.startswith(model_name)]
+        keys_to_remove = [k for k in self.cache.cache if k.startswith(model_name)]
         for key in keys_to_remove:
             self.cache._evict(key)
 
@@ -287,12 +296,12 @@ class DreamBoothManager:
         if model_name in self._models:
             del self._models[model_name]
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear all cached models."""
         self.cache.clear()
         self._models.clear()
 
-    def get_cache_info(self) -> Dict:
+    def get_cache_info(self) -> dict:
         """Get information about cached models."""
         return self.cache.get_info()
 
@@ -301,9 +310,8 @@ class DreamBoothManager:
         return list(self.cache.cache.keys())
 
 
-def list_models():
-    """
-    List all available fine-tuned models.
+def list_models() -> list[str]:
+    """List all available fine-tuned models.
 
     Returns:
         List of model names
@@ -315,22 +323,20 @@ def list_models():
 
     try:
         # Filter for directories that contain model files
-        model_dirs = []
-        for item in models_dir.iterdir():
-            if item.is_dir():
-                # Check if it contains model files
-                if any(item.glob("*.safetensors")) or any(item.glob("*.bin")):
-                    model_dirs.append(item.name)
+        model_dirs = [
+            item.name
+            for item in models_dir.iterdir()
+            if item.is_dir() and (any(item.glob("*.safetensors")) or any(item.glob("*.bin")))
+        ]
 
         return sorted(model_dirs)
     except Exception as e:
-        logger.error(f"Failed to list models: {str(e)}")
+        logger.error(f"Failed to list models: {e!s}")
         return []
 
 
-def delete_model(model_name: str) -> Tuple[str, list]:
-    """
-    Delete a fine-tuned model.
+def delete_model(model_name: str) -> tuple[str, list]:
+    """Delete a fine-tuned model.
 
     Args:
         model_name: Name of the model to delete
@@ -354,13 +360,12 @@ def delete_model(model_name: str) -> Tuple[str, list]:
         logger.info(f"Deleted model {model_name}")
         return f"Deleted {model_name}", list_models()
     except Exception as e:
-        logger.error(f"Failed to delete model {model_name}: {str(e)}")
-        return f"Error deleting {model_name}: {str(e)}", list_models()
+        logger.error(f"Failed to delete model {model_name}: {e!s}")
+        return f"Error deleting {model_name}: {e!s}", list_models()
 
 
-def get_model_info(model_name: str) -> Optional[Dict]:
-    """
-    Get information about a fine-tuned model.
+def get_model_info(model_name: str) -> Optional[dict]:
+    """Get information about a fine-tuned model.
 
     Args:
         model_name: Name of the model
@@ -385,7 +390,7 @@ def get_model_info(model_name: str) -> Optional[Dict]:
     if training_info_path.exists():
         import json
 
-        with open(training_info_path) as f:
+        with training_info_path.open() as f:
             info["training_info"] = json.load(f)
 
     return info

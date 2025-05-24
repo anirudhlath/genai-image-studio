@@ -1,13 +1,10 @@
-"""
-Dataset implementations for DreamBooth training with improved error handling and validation.
-"""
+"""Dataset implementations for DreamBooth training with improved error handling and validation."""
 
-import hashlib
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Union
 
-import torch
 from PIL import Image, ImageFile
+import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
@@ -20,24 +17,21 @@ logger = get_logger(__name__)
 
 
 class DreamBoothDataset(Dataset):
-    """
-    Dataset class for DreamBooth fine-tuning with robust image handling and augmentation support.
-    """
+    """Dataset class for DreamBooth fine-tuning with robust image handling and augmentation support."""
 
     def __init__(
         self,
-        instance_images: List[Union[str, Path]],
+        instance_images: list[Union[str, Path]],
         instance_prompt: str,
         tokenizer,
         size: int = 512,
         center_crop: bool = True,
-        class_images: Optional[List[Union[str, Path]]] = None,
+        class_images: Optional[list[Union[str, Path]]] = None,
         class_prompt: Optional[str] = None,
         random_flip: bool = True,
         color_jitter: bool = True,
     ):
-        """
-        Initialize the DreamBooth dataset with validation and augmentation options.
+        """Initialize the DreamBooth dataset with validation and augmentation options.
 
         Args:
             instance_images: List of paths to instance training images
@@ -86,13 +80,13 @@ class DreamBoothDataset(Dataset):
 
         logger.info(f"Dataset initialized with {len(self.instance_images)} instance images")
 
-    def _validate_images(self, image_paths: List[Union[str, Path]], image_type: str) -> List[Path]:
+    def _validate_images(self, image_paths: list[Union[str, Path]], image_type: str) -> list[Path]:
         """Validate and filter image paths."""
         valid_paths = []
         valid_extensions = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 
-        for path in image_paths:
-            path = Path(path)
+        for path_str in image_paths:
+            path = Path(path_str)
 
             # Check if file exists
             if not path.exists():
@@ -111,14 +105,16 @@ class DreamBoothDataset(Dataset):
                     img.verify()
 
                     # Re-open for actual checks (verify closes the file)
-                    with Image.open(path) as img:
+                    with Image.open(path) as img_check:
                         # Check minimum size
-                        if min(img.size) < 64:
-                            logger.warning(f"{image_type} image too small: {path} ({img.size})")
+                        if min(img_check.size) < 64:
+                            logger.warning(
+                                f"{image_type} image too small: {path} ({img_check.size})"
+                            )
                             continue
 
                         # Check if image is corrupted
-                        img.load()
+                        img_check.load()
 
                 valid_paths.append(path)
             except Exception as e:
@@ -187,8 +183,7 @@ class DreamBoothDataset(Dataset):
         return self._length
 
     def __getitem__(self, index: int) -> dict:
-        """
-        Get a training sample.
+        """Get a training sample.
 
         Returns:
             Dictionary with pixel_values and input_ids for the model
@@ -230,7 +225,7 @@ class DreamBoothDataset(Dataset):
 class ValidationDataset(Dataset):
     """Simple dataset for validation during training."""
 
-    def __init__(self, prompts: List[str], tokenizer):
+    def __init__(self, prompts: list[str], tokenizer):
         """Initialize validation dataset with prompts."""
         self.prompts = prompts
         self.tokenizer = tokenizer

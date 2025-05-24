@@ -1,6 +1,6 @@
 """Tests for model cache functionality."""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

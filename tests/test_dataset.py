@@ -1,11 +1,10 @@
 """Tests for dataset functionality."""
 
-import tempfile
 from pathlib import Path
 
+from PIL import Image
 import pytest
 import torch
-from PIL import Image
 
 from windsurf_dreambooth.training.dataset import DreamBoothDataset, ValidationDataset
 

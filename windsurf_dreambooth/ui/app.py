@@ -5,7 +5,7 @@ import time
 import gradio as gr
 from PIL import Image
 
-from ..models.generator import generate_image as _generate_image
+from ..models.generator import estimate_time, generate_image as _generate_image, get_max_steps
 from ..models.manager import DreamBoothManager, delete_model
 from ..training.trainer import train_model as _train_model
 from ..utils.logging import logger
@@ -86,14 +86,12 @@ def create_app():
             """
             # DreamBooth Studio
 
-            Fine-tune and generate images with Diffusion models. Select a tab below to get started.
+            Fine-tune and generate images with Diffusion models. Configure your global settings below, then select a tab to get started.
             """
         )
 
-        # Create tabs
-        train_tab, train_inputs, train_outputs = create_train_tab()
-        generate_tab, generate_inputs, generate_outputs = create_generate_tab()
-        models_tab, models_inputs, models_outputs = create_models_tab()
+        # Global model configuration section
+        gr.Markdown("### 🎛️ Model Configuration")
 
         # Update model lists
         models = fetch_hf_models()
@@ -102,20 +100,64 @@ def create_app():
             logger.warning("No models found, using default placeholder")
             models = ["No models available - please check your connection"]
 
-        train_inputs["model"].choices = models
-        generate_inputs["model"].choices = models
+        from ..config.constants import PIPELINE_MAPPING, PRECISION_OPTIONS, SCHEDULER_MAPPING
+
+        # Model selection row
+        with gr.Row():
+            with gr.Column(scale=2):
+                global_model = gr.Dropdown(
+                    choices=models,
+                    label="Base Model",
+                    allow_custom_value=True,
+                    info="Select a pre-configured model or use custom model ID",
+                    interactive=True,
+                )
+            with gr.Column(scale=2):
+                global_custom_model = gr.Textbox(
+                    label="Custom Model ID (Optional)",
+                    placeholder="e.g. runwayml/stable-diffusion-v1-5",
+                    info="Override base model with HuggingFace model ID",
+                )
+            with gr.Column(scale=3), gr.Group():
+                gr.Markdown("**Advanced Settings**")
+                with gr.Row():
+                    global_pipeline = gr.Dropdown(
+                        choices=list(PIPELINE_MAPPING.keys()),
+                        value="Generic",
+                        label="Pipeline",
+                        info="Architecture type",
+                        interactive=True,
+                    )
+                    global_precision = gr.Dropdown(
+                        choices=PRECISION_OPTIONS,
+                        value="f16",
+                        label="Precision",
+                        info="f16=fast, f32=quality",
+                        interactive=True,
+                    )
+                with gr.Row():
+                    global_scheduler = gr.Dropdown(
+                        choices=list(SCHEDULER_MAPPING.keys()),
+                        value="UniPC",
+                        label="Scheduler",
+                        info="Sampling method",
+                        interactive=True,
+                    )
+                    global_cpu_offload = gr.Checkbox(
+                        value=False, label="CPU Offload", info="Save VRAM (slower)"
+                    )
+
+        # Create tabs
+        train_tab, train_inputs, train_outputs = create_train_tab()
+        generate_tab, generate_inputs, generate_outputs = create_generate_tab()
+        models_tab, models_inputs, models_outputs = create_models_tab()
 
         # Training with progress
         def train_with_progress(
-            model,
-            custom_model,
             name,
             imgs,
             train_steps,
             batch_size,
-            precision,
-            pipeline_type,
-            cpu_offload,
             progress=gr.Progress(),
         ):
             """Train model with progress updates."""
@@ -154,7 +196,13 @@ def create_app():
                     progress(step / total_steps, desc=f"Training step {step}/{total_steps}")
                     time.sleep(0.1)  # Simulate training time
 
-                # Call actual training function
+                # Call actual training function - get global settings
+                model = global_model.value
+                custom_model = global_custom_model.value
+                precision = global_precision.value
+                pipeline_type = global_pipeline.value
+                cpu_offload = global_cpu_offload.value
+
                 result = _train_model(
                     model,
                     custom_model,
@@ -168,52 +216,39 @@ def create_app():
                 )
 
                 progress(1.0, desc="Training complete!")
-                final_info = f"### Training Complete!\n\n- Model saved successfully\n- Total steps: {train_steps}\n- Ready for generation"
 
-                return result, image_paths, final_info
+                return result, image_paths
 
             except Exception as e:
                 logger.error(f"Training error: {e!s}")
-                return f"Error: {e!s}", None, f"### Training Failed\n\n{e!s}"
+                return f"Error: {e!s}", None
 
         # Set up training tab events
         train_inputs["train_button"].click(
             train_with_progress,
             [
-                train_inputs["model"],
-                train_inputs["custom_model"],
                 train_inputs["name"],
                 train_inputs["imgs"],
                 train_inputs["train_steps"],
                 train_inputs["batch_size"],
-                train_inputs["precision"],
-                train_inputs["pipeline_type"],
-                train_inputs["cpu_offload"],
             ],
             [
                 train_outputs["output"],
                 train_outputs["image_preview"],
-                train_outputs["training_info"],
             ],
             queue=True,
         )
 
         # Generation with progress
         def generate_with_progress(
-            model,
-            custom_model,
             name,
             prompt,
             steps,
             guidance,
             batch_size,
-            precision,
-            pipeline_type,
-            scheduler,
             width,
             height,
             seed,
-            cpu_offload,
             progress=gr.Progress(),
         ):
             """Generate images with progress updates."""
@@ -225,7 +260,14 @@ def create_app():
                     progress(step / steps, desc=f"Generating... Step {step}/{steps}")
                     time.sleep(0.05)  # Simulate generation time
 
-                # Call actual generation function
+                # Call actual generation function - get global settings
+                model = global_model.value
+                custom_model = global_custom_model.value
+                precision = global_precision.value
+                pipeline_type = global_pipeline.value
+                cpu_offload = global_cpu_offload.value
+                scheduler = global_scheduler.value
+
                 images = _generate_image(
                     model,
                     custom_model,
@@ -244,35 +286,79 @@ def create_app():
                 )
 
                 progress(1.0, desc="Generation complete!")
-                final_status = f"### Generation Complete!\n\n- Generated {len(images) if images else 0} images\n- Ready to download"
 
-                return images, final_status
+                return images
 
             except Exception as e:
                 logger.error(f"Generation error: {e!s}")
-                return None, f"### Generation Failed\n\n{e!s}"
+                return None
 
         # Set up generation tab events
         generate_inputs["generate_button"].click(
             generate_with_progress,
             [
-                generate_inputs["model"],
-                generate_inputs["custom_model"],
                 generate_inputs["name"],
                 generate_inputs["prompt"],
                 generate_inputs["steps"],
                 generate_inputs["guidance"],
                 generate_inputs["batch_size"],
-                generate_inputs["precision"],
-                generate_inputs["pipeline_type"],
-                generate_inputs["scheduler"],
                 generate_inputs["width"],
                 generate_inputs["height"],
                 generate_inputs["seed"],
-                generate_inputs["cpu_offload"],
             ],
-            [generate_outputs["gallery"], generate_outputs["generation_status"]],
+            [generate_outputs["gallery"]],
             queue=True,
+        )
+
+        # Set up dynamic updates for generation tab
+        for comp in [
+            generate_inputs["steps"],
+            generate_inputs["batch_size"],
+            generate_inputs["width"],
+            generate_inputs["height"],
+        ]:
+            comp.change(
+                lambda steps, batch_size, width, height: estimate_time(
+                    steps, batch_size, width, height, global_precision.value
+                ),
+                [
+                    generate_inputs["steps"],
+                    generate_inputs["batch_size"],
+                    generate_inputs["width"],
+                    generate_inputs["height"],
+                ],
+                generate_outputs["estimate"],
+            )
+
+        global_precision.change(
+            lambda steps, batch_size, width, height, precision: estimate_time(
+                steps, batch_size, width, height, precision
+            ),
+            [
+                generate_inputs["steps"],
+                generate_inputs["batch_size"],
+                generate_inputs["width"],
+                generate_inputs["height"],
+                global_precision,
+            ],
+            generate_outputs["estimate"],
+        )
+
+        # Dynamically adjust max inference steps based on model and precision
+        global_model.change(
+            lambda model, precision, steps: get_max_steps(model, precision, steps),
+            [global_model, global_precision, generate_inputs["steps"]],
+            generate_inputs["steps"],
+        )
+        global_precision.change(
+            lambda model, precision, steps: get_max_steps(model, precision, steps),
+            [global_model, global_precision, generate_inputs["steps"]],
+            generate_inputs["steps"],
+        )
+        global_pipeline.change(
+            lambda model, precision, steps: get_max_steps(model, precision, steps),
+            [global_model, global_precision, generate_inputs["steps"]],
+            generate_inputs["steps"],
         )
 
         # Set up models tab events

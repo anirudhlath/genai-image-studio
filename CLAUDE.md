@@ -90,6 +90,19 @@ The application supports multiple diffusion model types defined in `config/const
 - Training includes checkpoint saving and resume capabilities
 - API endpoints support real-time progress updates via polling
 
+## UI Design Guidelines
+
+For UI development in this project, refer to:
+- `ui-design-guidelines.md` - General UI principles and patterns
+- `gradio-ui-best-practices.md` - Gradio-specific implementation patterns
+
+Key principles followed in this project:
+- Global settings outside tabs to eliminate duplication
+- Balanced column layouts with proper scaling (scale=2, scale=2, scale=3)
+- Advanced settings grouped in secondary sections with `gr.Group()`
+- Clear, concise labels and info text
+- Logical information hierarchy: Global → Specific functionality
+
 ## Testing Infrastructure
 
 The project includes comprehensive testing with 40+ dev dependencies:
