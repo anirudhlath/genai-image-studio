@@ -1,30 +1,22 @@
-"""
-Application constants and configuration settings
-"""
+"""Application constants and configuration settings."""
 
-import os
+from pathlib import Path
 
+# All pipelines now available in diffusers>=0.33.0
 from diffusers import (
     DDIMScheduler,
     DiffusionPipeline,
     DPMSolverMultistepScheduler,
     EulerDiscreteScheduler,
+    FluxPipeline,
     PNDMScheduler,
+    StableDiffusion3Pipeline,
     StableDiffusionPipeline,
     StableDiffusionXLPipeline,
     UniPCMultistepScheduler,
 )
 
-# Try to import newer pipelines if available
-try:
-    from diffusers import StableDiffusion3Pipeline
-except ImportError:
-    StableDiffusion3Pipeline = None
-
-try:
-    from diffusers import FluxPipeline
-except ImportError:
-    FluxPipeline = None
+# Now that we have newer diffusers, both SD3 and Flux are available!
 
 # Base model configurations
 AVAILABLE_MODELS = {
@@ -35,22 +27,17 @@ AVAILABLE_MODELS = {
 
 # Directory for storing fine-tuned models
 FINETUNED_MODELS_DIR = "finetuned_models"
-os.makedirs(FINETUNED_MODELS_DIR, exist_ok=True)
+Path(FINETUNED_MODELS_DIR).mkdir(parents=True, exist_ok=True)
 
 # Pipeline mapping for different model types
 
 PIPELINE_MAPPING = {
     "StableDiffusion": StableDiffusionPipeline,
     "StableDiffusionXL": StableDiffusionXLPipeline,
+    "StableDiffusion3": StableDiffusion3Pipeline,
+    "Flux": FluxPipeline,
     "Generic": DiffusionPipeline,
 }
-
-# Add newer pipelines if available
-if StableDiffusion3Pipeline is not None:
-    PIPELINE_MAPPING["StableDiffusion3"] = StableDiffusion3Pipeline
-
-if FluxPipeline is not None:
-    PIPELINE_MAPPING["Flux"] = FluxPipeline
 
 # Scheduler options
 
@@ -66,6 +53,6 @@ SCHEDULER_MAPPING = {
 PRECISION_OPTIONS = ["bf16", "bf32", "f16", "f32"]
 
 # For API compatibility
-SUPPORTED_MODELS = list(AVAILABLE_MODELS.keys()) + ["custom"]
+SUPPORTED_MODELS = [*list(AVAILABLE_MODELS.keys()), "custom"]
 PIPELINE_TYPES = list(PIPELINE_MAPPING.keys())
 SCHEDULERS = list(SCHEDULER_MAPPING.keys())
