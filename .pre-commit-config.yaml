@@ -1,0 +1,137 @@
+# Pre-commit configuration for automatic fixing and testing
+# See https://pre-commit.com for more information
+
+repos:
+  # Ruff - Python linting and formatting (replaces black, isort, flake8, etc.)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.11
+    hooks:
+      # Ruff linter with auto-fix
+      - id: ruff
+        name: "Ruff: Auto-fix linting issues"
+        args: [--fix, --exit-non-zero-on-fix]
+        types: [python]
+
+      # Ruff formatter (replaces black)
+      - id: ruff-format
+        name: "Ruff: Auto-format Python code"
+        types: [python]
+
+  # MyPy - Static type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        name: "MyPy: Type checking"
+        additional_dependencies: [types-requests, types-pyyaml, types-python-dateutil]
+        args: [--config-file=pyproject.toml]
+        exclude: ^(tests/|docs/)
+
+  # Built-in pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # File formatting
+      - id: trailing-whitespace
+        name: "Fix: Remove trailing whitespace"
+      - id: end-of-file-fixer
+        name: "Fix: Ensure files end with newline"
+      - id: mixed-line-ending
+        name: "Fix: Normalize line endings"
+        args: [--fix=lf]
+
+      # File validation
+      - id: check-yaml
+        name: "Check: YAML syntax"
+      - id: check-toml
+        name: "Check: TOML syntax"
+      - id: check-json
+        name: "Check: JSON syntax"
+      - id: check-xml
+        name: "Check: XML syntax"
+
+      # Python-specific checks
+      - id: check-ast
+        name: "Check: Python AST syntax"
+      - id: check-docstring-first
+        name: "Check: Docstring placement"
+      - id: debug-statements
+        name: "Check: No debug statements"
+
+      # Security checks
+      - id: detect-private-key
+        name: "Security: Detect private keys"
+      - id: check-merge-conflict
+        name: "Check: No merge conflict markers"
+
+      # File size and encoding
+      - id: check-added-large-files
+        name: "Check: No large files"
+        args: [--maxkb=10240]  # 10MB limit
+      - id: fix-byte-order-marker
+        name: "Fix: Remove BOM"
+
+  # Security scanning with bandit
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        name: "Security: Bandit scan"
+        args: [-r, windsurf_dreambooth/]
+        pass_filenames: false
+
+  # Local hooks for testing
+  - repo: local
+    hooks:
+      # Fast tests (unit tests only, no slow/GPU tests)
+      - id: pytest-fast
+        name: "Tests: Fast unit tests"
+        entry: uv run pytest
+        language: system
+        args: [-m, "not slow and not gpu and not integration", --maxfail=3, --tb=short, -q, --no-cov]
+        types: [python]
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # Type check with local mypy config
+      - id: mypy-local
+        name: "Types: Local MyPy check"
+        entry: uv run mypy
+        language: system
+        args: [windsurf_dreambooth]
+        types: [python]
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # Build check - ensure package can be built
+      - id: build-check
+        name: "Build: Package build test"
+        entry: uv build
+        language: system
+        args: [--wheel]
+        pass_filenames: false
+        stages: [pre-commit]
+        files: ^(pyproject\.toml|windsurf_dreambooth/.*\.py)$
+
+# Global configuration
+default_language_version:
+  python: python3.11
+
+# Performance settings
+default_stages: [pre-commit]
+fail_fast: false  # Run all hooks even if one fails
+
+# Exclude patterns
+exclude: |
+  (?x)^(
+    outputs/.*|
+    uploads/.*|
+    model_cache/.*|
+    finetuned_models/.*|
+    htmlcov/.*|
+    \.git/.*|
+    \.pytest_cache/.*|
+    \.mypy_cache/.*|
+    __pycache__/.*|
+    .*\.egg-info/.*
+  )$
