@@ -18,4 +18,8 @@ diffusers_logging.enable_progress_bar()
 # Initialize logger
 logger.info("DreamBooth App initialization complete, ready to serve.")
 
-__all__ = ["logger"]
+def get_logger(name: str = None):
+    """Get a logger instance."""
+    return logger
+
+__all__ = ["logger", "get_logger"]

@@ -2,6 +2,7 @@
 Image generation functionality using diffusion models
 """
 import torch
+from typing import List, Optional
 from ..utils.logging import logger
 from ..config.constants import SCHEDULER_MAPPING
 
@@ -188,3 +189,64 @@ def generate_image(
     except Exception as e:
         logger.error(f"Generation failed: {str(e)}")
         return []
+
+
+class ImageGenerator:
+    """Image generation class for the API"""
+    
+    def __init__(self):
+        """Initialize the image generator"""
+        from ..models.manager import DreamBoothManager
+        self.manager = DreamBoothManager()
+        
+    def generate(
+        self,
+        model_id: str,
+        prompt: str,
+        negative_prompt: Optional[str] = None,
+        num_images: int = 1,
+        num_inference_steps: int = 50,
+        guidance_scale: float = 7.5,
+        width: int = 512,
+        height: int = 512,
+        seed: Optional[int] = None,
+        scheduler: Optional[str] = None,
+        precision: str = "f16",
+        cpu_offload: bool = False,
+    ) -> List[str]:
+        """
+        Generate images using the specified model and parameters
+        
+        Args:
+            model_id: Model ID to use for generation
+            prompt: Text prompt for generation
+            negative_prompt: Negative prompt (optional)
+            num_images: Number of images to generate
+            num_inference_steps: Number of inference steps
+            guidance_scale: Guidance scale
+            width: Image width
+            height: Image height
+            seed: Random seed
+            scheduler: Scheduler name
+            precision: Precision to use
+            cpu_offload: Whether to enable CPU offloading
+            
+        Returns:
+            List of generated image paths
+        """
+        return generate_image(
+            model_key=model_id,
+            custom_model=None,
+            subject_name="",
+            prompt=prompt,
+            steps=num_inference_steps,
+            guidance=guidance_scale,
+            batch_size=num_images,
+            precision=precision,
+            pipeline_type="StableDiffusionPipeline",
+            scheduler_name=scheduler or "default",
+            width=width,
+            height=height,
+            seed=seed,
+            cpu_offload=cpu_offload,
+        )

@@ -5,8 +5,6 @@ import os
 from diffusers import (
     StableDiffusionPipeline,
     StableDiffusionXLPipeline,
-    StableDiffusion3Pipeline,
-    FluxPipeline,
     DiffusionPipeline,
     EulerDiscreteScheduler,
     DDIMScheduler,
@@ -14,6 +12,17 @@ from diffusers import (
     DPMSolverMultistepScheduler,
     UniPCMultistepScheduler,
 )
+
+# Try to import newer pipelines if available
+try:
+    from diffusers import StableDiffusion3Pipeline
+except ImportError:
+    StableDiffusion3Pipeline = None
+    
+try:
+    from diffusers import FluxPipeline
+except ImportError:
+    FluxPipeline = None
 
 # Base model configurations
 AVAILABLE_MODELS = {
@@ -31,10 +40,15 @@ os.makedirs(FINETUNED_MODELS_DIR, exist_ok=True)
 PIPELINE_MAPPING = {
     "StableDiffusion": StableDiffusionPipeline,
     "StableDiffusionXL": StableDiffusionXLPipeline,
-    "StableDiffusion3": StableDiffusion3Pipeline,
-    "Flux": FluxPipeline,
     "Generic": DiffusionPipeline
 }
+
+# Add newer pipelines if available
+if StableDiffusion3Pipeline is not None:
+    PIPELINE_MAPPING["StableDiffusion3"] = StableDiffusion3Pipeline
+    
+if FluxPipeline is not None:
+    PIPELINE_MAPPING["Flux"] = FluxPipeline
 
 # Scheduler options
 
@@ -51,3 +65,8 @@ PRECISION_OPTIONS = [
     "bf16", "bf32", 
     "f16", "f32"
 ]
+
+# For API compatibility
+SUPPORTED_MODELS = list(AVAILABLE_MODELS.keys()) + ["custom"]
+PIPELINE_TYPES = list(PIPELINE_MAPPING.keys())
+SCHEDULERS = list(SCHEDULER_MAPPING.keys())
