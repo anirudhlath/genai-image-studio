@@ -44,17 +44,19 @@ def mock_model():
 def sample_image_paths(tmp_dir):
     """Create sample image paths for testing."""
     from PIL import Image
-    
+
     paths = []
     for i in range(5):
         path = tmp_dir / f"test_image_{i}.jpg"
         # Create a simple test image
-        img = Image.new('RGB', (512, 512), color=(fake.random_int(0, 255), 
-                                                  fake.random_int(0, 255), 
-                                                  fake.random_int(0, 255)))
+        img = Image.new(
+            "RGB",
+            (512, 512),
+            color=(fake.random_int(0, 255), fake.random_int(0, 255), fake.random_int(0, 255)),
+        )
         img.save(path)
         paths.append(path)
-    
+
     return paths
 
 
@@ -62,8 +64,9 @@ def sample_image_paths(tmp_dir):
 def mock_api_client():
     """Create a mock API client for testing endpoints."""
     from fastapi.testclient import TestClient
+
     from windsurf_dreambooth.api.app import app
-    
+
     return TestClient(app)
 
 
@@ -105,11 +108,11 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.integration)
         elif "unit" in str(item.fspath) or "test_" in str(item.fspath):
             item.add_marker(pytest.mark.unit)
-        
+
         # Mark slow tests
         if "slow" in item.name or "model" in item.name:
             item.add_marker(pytest.mark.slow)
-        
+
         # Mark GPU tests
         if "gpu" in item.name or "cuda" in item.name:
             item.add_marker(pytest.mark.gpu)

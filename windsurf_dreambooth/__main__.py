@@ -1,6 +1,7 @@
 """
 Main entry point for the DreamBooth application
 """
+
 from .ui.app import launch_app
 from .utils.logging import logger
 

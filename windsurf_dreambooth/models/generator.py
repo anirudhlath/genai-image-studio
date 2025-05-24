@@ -1,38 +1,43 @@
 """
 Image generation functionality using diffusion models
 """
-import torch
+
 from typing import List, Optional
-from ..utils.logging import logger
+
+import torch
+
 from ..config.constants import SCHEDULER_MAPPING
+from ..utils.logging import logger
 
 
 def estimate_time(steps, batch_size, width, height, precision):
     """
     Estimate the time required for image generation
-    
+
     Args:
         steps: Number of inference steps
         batch_size: Batch size for generation
         width: Image width
         height: Image height
         precision: Precision to use for generation
-        
+
     Returns:
         Formatted string with time estimate
     """
     # Base time in seconds for a standard 512x512 image at f16 precision with 50 steps
     base_time_per_step = 0.12
-    
+
     # Calculate multipliers based on parameters
     size_multiplier = (width * height) / (512 * 512)
     precision_multiplier = 1.0
     if precision == "f32" or precision == "bf32":
         precision_multiplier = 1.5
-    
+
     # Estimate total time in seconds
-    estimated_time = steps * batch_size * base_time_per_step * size_multiplier * precision_multiplier
-    
+    estimated_time = (
+        steps * batch_size * base_time_per_step * size_multiplier * precision_multiplier
+    )
+
     # Format the output
     if estimated_time < 60:
         return f"Estimated time: {estimated_time:.1f} seconds"
@@ -45,28 +50,28 @@ def estimate_time(steps, batch_size, width, height, precision):
 def get_max_steps(model_key, precision, current_steps):
     """
     Determine maximum recommended steps based on model and precision
-    
+
     Args:
         model_key: Model key or ID
         precision: Precision setting
         current_steps: Current step setting
-        
+
     Returns:
         Updated step value if needed
     """
     # Default max steps for most models
     max_steps = 1000
-    
+
     # Adjust based on model type
     if "xl" in model_key.lower():
         max_steps = 100  # SDXL models usually need fewer steps
     elif "sd3" in model_key.lower() or "stable-diffusion-3" in model_key.lower():
         max_steps = 50  # SD3 is even faster
-        
+
     # Adjust for high precision which might run out of memory with many steps
     if precision in ["f32", "bf32"]:
         max_steps = min(max_steps, 500)
-        
+
     # Return the minimum of current steps and max steps
     return min(current_steps, max_steps)
 
@@ -89,7 +94,7 @@ def generate_image(
 ):
     """
     Generate images using the specified model and parameters
-    
+
     Args:
         model_key: Key of the model to use or "custom" for custom_model
         custom_model: HuggingFace model ID for custom models
@@ -105,55 +110,56 @@ def generate_image(
         height: Image height
         seed: Random seed for reproducibility
         cpu_offload: Whether to enable CPU offloading
-        
+
     Returns:
         List of generated image paths
     """
-    from ..models.manager import DreamBoothManager
-    import uuid
     import os
-    
+    import uuid
+
+    from ..models.manager import DreamBoothManager
+
     manager = DreamBoothManager()
-    
+
     try:
         # Validate inputs
         if not prompt or prompt.strip() == "":
             logger.error("No prompt provided")
             return []
-        
+
         # Determine the model to use
         if model_key == "custom" and custom_model:
             model_id = custom_model
         else:
             model_id = model_key
-        
+
         if not model_id:
             logger.error("No model selected")
             return []
-            
+
         # Validate numerical parameters
         if steps <= 0:
             logger.error(f"Invalid steps value: {steps}")
             return []
-        
+
         if width <= 0 or height <= 0:
             logger.error(f"Invalid image dimensions: {width}x{height}")
             return []
-        
+
         # Load the model
         pipeline = manager.load(model_id, pipeline_type, precision, cpu_offload)
-        
+
         # Apply the selected scheduler if it exists
         if scheduler_name in SCHEDULER_MAPPING:
             logger.info(f"Using {scheduler_name} scheduler")
             pipeline.scheduler = SCHEDULER_MAPPING[scheduler_name].from_config(
                 pipeline.scheduler.config
             )
-        
+
         # Set the seed for reproducibility
         if seed is not None:
             torch.manual_seed(seed)
-            
+
         # Prepare the prompt
         if subject_name:
             full_prompt = prompt.replace(subject_name, subject_name)
@@ -161,9 +167,9 @@ def generate_image(
                 full_prompt = f"a photo of {subject_name}, {prompt}"
         else:
             full_prompt = prompt
-            
+
         logger.info(f"Generating with prompt: {full_prompt}")
-        
+
         # Generate the images
         output = pipeline(
             full_prompt,
@@ -173,19 +179,19 @@ def generate_image(
             width=width,
             height=height,
         )
-        
+
         # Save the images
         os.makedirs("outputs", exist_ok=True)
         image_paths = []
-        
+
         for i, image in enumerate(output.images):
             output_path = f"outputs/generated_{uuid.uuid4().hex[:8]}_{i}.png"
             image.save(output_path)
             image_paths.append(output_path)
             logger.info(f"Saved image to {output_path}")
-            
+
         return image_paths
-        
+
     except Exception as e:
         logger.error(f"Generation failed: {str(e)}")
         return []
@@ -193,12 +199,13 @@ def generate_image(
 
 class ImageGenerator:
     """Image generation class for the API"""
-    
+
     def __init__(self):
         """Initialize the image generator"""
         from ..models.manager import DreamBoothManager
+
         self.manager = DreamBoothManager()
-        
+
     def generate(
         self,
         model_id: str,
@@ -216,7 +223,7 @@ class ImageGenerator:
     ) -> List[str]:
         """
         Generate images using the specified model and parameters
-        
+
         Args:
             model_id: Model ID to use for generation
             prompt: Text prompt for generation
@@ -230,7 +237,7 @@ class ImageGenerator:
             scheduler: Scheduler name
             precision: Precision to use
             cpu_offload: Whether to enable CPU offloading
-            
+
         Returns:
             List of generated image paths
         """

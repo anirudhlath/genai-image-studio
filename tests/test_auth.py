@@ -1,26 +1,27 @@
 """Tests for authentication and security."""
 
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import patch
 
+import pytest
+from fastapi.testclient import TestClient
+
 from windsurf_dreambooth.api.auth import (
-    validate_file_path, 
-    sanitize_filename,
     RateLimitMiddleware,
-    SecurityHeadersMiddleware
+    SecurityHeadersMiddleware,
+    sanitize_filename,
+    validate_file_path,
 )
 
 
 class TestFileSecurity:
     """Test file path validation and sanitization."""
-    
+
     def test_validate_file_path_valid(self):
         """Test valid file paths."""
         assert validate_file_path("image.jpg") == True
         assert validate_file_path("folder/image.png") == True
         assert validate_file_path("deep/nested/path/file.txt") == True
-        
+
     def test_validate_file_path_invalid(self):
         """Test invalid file paths."""
         assert validate_file_path("../etc/passwd") == False
@@ -28,7 +29,7 @@ class TestFileSecurity:
         assert validate_file_path("path/../../sensitive") == False
         assert validate_file_path("file;rm -rf /") == False
         assert validate_file_path("file$(whoami)") == False
-        
+
     def test_sanitize_filename(self):
         """Test filename sanitization."""
         assert sanitize_filename("normal.jpg") == "normal.jpg"
@@ -41,38 +42,38 @@ class TestFileSecurity:
 
 class TestRateLimiting:
     """Test rate limiting middleware."""
-    
+
     def test_rate_limit_allows_requests(self):
         """Test that requests within limit are allowed."""
         from fastapi import FastAPI
-        
+
         app = FastAPI()
         app.add_middleware(RateLimitMiddleware, calls=5, window=60)
-        
+
         @app.get("/test")
         def test_endpoint():
             return {"status": "ok"}
-        
+
         client = TestClient(app)
-        
+
         # Make requests within limit
         for _ in range(5):
             response = client.get("/test")
             assert response.status_code == 200
-            
+
     def test_rate_limit_blocks_excess(self):
         """Test that excess requests are blocked."""
         from fastapi import FastAPI
-        
+
         app = FastAPI()
         app.add_middleware(RateLimitMiddleware, calls=2, window=60)
-        
+
         @app.get("/test")
         def test_endpoint():
             return {"status": "ok"}
-        
+
         client = TestClient(app)
-        
+
         # Make requests
         for i in range(3):
             response = client.get("/test")
@@ -85,21 +86,21 @@ class TestRateLimiting:
 
 class TestSecurityHeaders:
     """Test security headers middleware."""
-    
+
     def test_security_headers_added(self):
         """Test that security headers are added to responses."""
         from fastapi import FastAPI
-        
+
         app = FastAPI()
         app.add_middleware(SecurityHeadersMiddleware)
-        
+
         @app.get("/test")
         def test_endpoint():
             return {"status": "ok"}
-        
+
         client = TestClient(app)
         response = client.get("/test")
-        
+
         assert response.headers["X-Content-Type-Options"] == "nosniff"
         assert response.headers["X-Frame-Options"] == "DENY"
         assert response.headers["X-XSS-Protection"] == "1; mode=block"
