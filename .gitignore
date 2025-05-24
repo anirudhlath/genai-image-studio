@@ -98,5 +98,27 @@ Thumbs.db
 *.tmp
 *.temp
 
-# UV lock file (regenerated)
-uv.lock
+# Pre-commit and linting
+.pre-commit-config.yaml.backup
+bandit-report.json
+.ruff_cache/
+.mypy_cache/
+
+# Security and analysis reports
+bandit-report.json
+safety-report.json
+vulns.json
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# ML/AI specific
+wandb/
+.wandb/
+*.tensorboard
+runs/
+lightning_logs/
+
+# UV lock file (comment out if you want to track it)
+# uv.lock
