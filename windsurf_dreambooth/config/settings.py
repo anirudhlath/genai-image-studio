@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # API Settings
     api_host: str = Field("0.0.0.0", env="API_HOST")  # nosec B104
     api_port: int = Field(8000, env="API_PORT")
-    api_workers: int = Field(1, env="API_WORKERS")
+    api_workers: int = Field(4, env="API_WORKERS")  # Optimized for 5800X3D (8 cores)
     cors_origins: list[str] = Field(["http://localhost:3000"], env="CORS_ORIGINS")
 
     # Security
@@ -25,12 +25,14 @@ class Settings(BaseSettings):
     # Model Settings
     default_model: str = Field("stabilityai/stable-diffusion-xl-base-1.0", env="DEFAULT_MODEL")
     model_cache_dir: Path = Field(Path("./model_cache"), env="MODEL_CACHE_DIR")
-    max_cached_models: int = Field(3, env="MAX_CACHED_MODELS")
+    max_cached_models: int = Field(6, env="MAX_CACHED_MODELS")  # RTX 4090 has 24GB VRAM
 
     # Training Settings
     default_learning_rate: float = Field(5e-6, env="DEFAULT_LEARNING_RATE")
     default_train_steps: int = Field(1000, env="DEFAULT_TRAIN_STEPS")
-    default_batch_size: int = Field(1, env="DEFAULT_BATCH_SIZE")
+    default_batch_size: int = Field(
+        4, env="DEFAULT_BATCH_SIZE"
+    )  # RTX 4090 can handle larger batches
     max_train_steps: int = Field(10000, env="MAX_TRAIN_STEPS")
     gradient_clip_val: float = Field(1.0, env="GRADIENT_CLIP_VAL")
 
@@ -42,9 +44,12 @@ class Settings(BaseSettings):
 
     # Performance Settings
     enable_memory_efficient_attention: bool = Field(True, env="ENABLE_MEMORY_EFFICIENT_ATTENTION")
-    enable_vae_slicing: bool = Field(True, env="ENABLE_VAE_SLICING")
+    enable_vae_slicing: bool = Field(False, env="ENABLE_VAE_SLICING")  # RTX 4090 has enough VRAM
     enable_vae_tiling: bool = Field(False, env="ENABLE_VAE_TILING")
-    dataloader_num_workers: int = Field(4, env="DATALOADER_NUM_WORKERS")
+    dataloader_num_workers: int = Field(
+        8, env="DATALOADER_NUM_WORKERS"
+    )  # 5800X3D has 8 cores/16 threads
+    use_safetensors: bool = Field(True, env="USE_SAFETENSORS")
 
     # Logging
     log_level: str = Field("INFO", env="LOG_LEVEL")

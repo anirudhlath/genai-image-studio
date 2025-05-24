@@ -88,7 +88,39 @@ python main.py --mode both
 
 # Create .env template
 python main.py --create-env
+
+# Test model loading
+python main.py --load runwayml/stable-diffusion-v1-5
+python main.py --load stabilityai/stable-diffusion-xl-base-1.0 --pipeline StableDiffusionXL
 ```
+
+## Configuration
+
+The application can be configured via environment variables. Copy `.env.example` to `.env` and adjust settings based on your hardware:
+
+### Hardware Optimization
+
+**High-End Systems (RTX 4090 + 5800X3D + 64GB RAM):**
+- `DEFAULT_BATCH_SIZE=4` - Larger batches for faster training
+- `MAX_CACHED_MODELS=6` - Keep more models in VRAM
+- `DATALOADER_NUM_WORKERS=8` - Utilize all CPU cores
+- `ENABLE_VAE_SLICING=false` - Not needed with 24GB VRAM
+- `API_WORKERS=4` - Multiple API workers
+
+**Mid-Range Systems (RTX 3070/4070 + 8-12GB VRAM):**
+- `DEFAULT_BATCH_SIZE=2`
+- `MAX_CACHED_MODELS=2-3`
+- `DATALOADER_NUM_WORKERS=4`
+- `ENABLE_VAE_SLICING=true`
+- `API_WORKERS=2`
+
+**Entry-Level Systems (GTX 1660/RTX 3060 + 6GB VRAM):**
+- `DEFAULT_BATCH_SIZE=1`
+- `MAX_CACHED_MODELS=1`
+- `DATALOADER_NUM_WORKERS=2`
+- `ENABLE_VAE_SLICING=true`
+- `ENABLE_VAE_TILING=true` - For very limited VRAM
+- `API_WORKERS=1`
 
 ## API Endpoints
 

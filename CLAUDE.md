@@ -22,6 +22,10 @@ uv run main.py --mode both  # Both Gradio and API
 # or
 python -m windsurf_dreambooth
 
+# Test model loading
+uv run main.py --load runwayml/stable-diffusion-v1-5
+uv run main.py --load stabilityai/stable-diffusion-xl-base-1.0 --pipeline StableDiffusionXL --precision f16
+
 # Run tests
 uv run pytest
 uv run pytest --cov=windsurf_dreambooth
@@ -89,6 +93,41 @@ The application supports multiple diffusion model types defined in `config/const
 - All file uploads are validated and sanitized for security
 - Training includes checkpoint saving and resume capabilities
 - API endpoints support real-time progress updates via polling
+
+## Memory Management Options
+
+This project provides multiple memory management options that users can mix and match:
+- **CPU Offload**: Moves model components to CPU when not in use
+- **Sequential CPU Offload**: More aggressive CPU offloading, processes layers sequentially (mostly uses CPU)
+- **Device Map Strategy**: Choose how to distribute model across devices (dynamically loaded from diffusers)
+  - Currently supported: `balanced` - Distributes model evenly across VRAM and RAM
+  - Future: More strategies will automatically appear as diffusers adds them
+- **Low CPU Memory Usage**: Loads model weights sequentially to reduce peak memory usage
+- **Quantization**: int8, int4, nf4, fp4 options for 50-75% memory reduction
+
+**Key Differences**:
+- **Sequential CPU Offload**: Processes everything sequentially through CPU, minimal VRAM usage
+- **Device Map Strategies**: Flexible device distribution (currently only "balanced", but extensible)
+- **CPU Offload**: Standard offloading, moves inactive components to CPU
+
+**IMPORTANT**: No model-specific logic should be added. Users should be able to experiment with any combination of these options.
+
+## Optimized Hardware Settings
+
+The default settings are optimized for high-end hardware (RTX 4090 + AMD 5800X3D + 64GB RAM):
+
+- **API Workers**: 4 (utilizing multi-core CPU efficiently)
+- **Model Cache**: 6 models (RTX 4090 has 24GB VRAM)
+- **Batch Size**: 4 for training (RTX 4090 can handle larger batches)
+- **DataLoader Workers**: 8 (matching CPU core count)
+- **VAE Slicing**: Disabled (not needed with 24GB VRAM)
+- **Memory Efficient Attention**: Enabled (still beneficial for performance)
+
+For lower-end systems, adjust these settings in your `.env` file:
+- Reduce `DEFAULT_BATCH_SIZE` to 1-2
+- Set `DATALOADER_NUM_WORKERS` to 2-4
+- Enable `ENABLE_VAE_SLICING=true`
+- Reduce `MAX_CACHED_MODELS` to 1-2
 
 ## UI Design Guidelines
 

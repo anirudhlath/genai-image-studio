@@ -5,7 +5,7 @@ import gc
 from pathlib import Path
 import shutil
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 
@@ -167,6 +167,9 @@ class DreamBoothManager:
         pipeline_type: str = "Generic",
         precision: str = "f16",
         use_cpu_offload: bool = False,
+        use_sequential_cpu_offload: bool = False,
+        device_map_strategy: Optional[str] = None,
+        low_cpu_mem_usage: bool = False,
         enable_attention_slicing: bool = True,
         enable_vae_slicing: bool = True,
         enable_vae_tiling: bool = False,
@@ -178,6 +181,9 @@ class DreamBoothManager:
             pipeline_type: Type of pipeline to use
             precision: Model precision (bf16, bf32, f16, f32)
             use_cpu_offload: Enable CPU offloading
+            use_sequential_cpu_offload: Enable sequential CPU offloading (more aggressive memory saving)
+            device_map_strategy: Device mapping strategy (e.g., 'balanced', or None for no device mapping)
+            low_cpu_mem_usage: Load model weights sequentially to reduce peak memory usage
             enable_attention_slicing: Enable attention slicing for memory efficiency
             enable_vae_slicing: Enable VAE slicing
             enable_vae_tiling: Enable VAE tiling for very large images
@@ -186,7 +192,7 @@ class DreamBoothManager:
             Loaded pipeline
         """
         # Create cache key
-        cache_key = f"{model_name}_{pipeline_type}_{precision}_{use_cpu_offload}"
+        cache_key = f"{model_name}_{pipeline_type}_{precision}_{use_cpu_offload}_{use_sequential_cpu_offload}_{device_map_strategy}_{low_cpu_mem_usage}"
 
         # Check cache
         cached_pipeline = self.cache.get(cache_key)
@@ -194,18 +200,73 @@ class DreamBoothManager:
             logger.info(f"Using cached pipeline for {model_name}")
             return cached_pipeline
 
-        logger.info(
-            f"Loading model {model_name} with {pipeline_type} pipeline at {precision} precision"
-        )
+        # Log all model loading settings
+        logger.info("=" * 60)
+        logger.info("MODEL LOADING CONFIGURATION")
+        logger.info("=" * 60)
+        logger.info(f"Model: {model_name}")
+        logger.info(f"Pipeline Type: {pipeline_type}")
+        logger.info(f"Precision: {precision}")
+        logger.info("Memory Management Options:")
+        logger.info(f"  - CPU Offload: {'✓' if use_cpu_offload else '✗'}")
+        logger.info(f"  - Sequential CPU Offload: {'✓' if use_sequential_cpu_offload else '✗'}")
+        logger.info(f"  - Device Map Strategy: {device_map_strategy or 'None'}")
+        logger.info(f"  - Low CPU Memory Usage: {'✓' if low_cpu_mem_usage else '✗'}")
+        logger.info("Optimization Options:")
+        logger.info(f"  - Attention Slicing: {'✓' if enable_attention_slicing else '✗'}")
+        logger.info(f"  - VAE Slicing: {'✓' if enable_vae_slicing else '✗'}")
+        logger.info(f"  - VAE Tiling: {'✓' if enable_vae_tiling else '✗'}")
+        logger.info("=" * 60)
 
-        # Determine torch dtype
+        # Determine torch dtype and quantization config
         dtype_map = {
             "bf16": torch.bfloat16,
-            "bf32": torch.float32,
             "f16": torch.float16,
             "f32": torch.float32,
+            "int8": torch.float16,  # Will use 8-bit quantization
+            "int4": torch.float16,  # Will use 4-bit quantization
+            "nf4": torch.float16,  # Will use 4-bit NormalFloat
+            "fp4": torch.float16,  # Will use 4-bit FloatingPoint
         }
         torch_dtype = dtype_map.get(precision, torch.float16)
+
+        # Prepare quantization config if needed
+        quantization_config = None
+        load_in_8bit = False
+        load_in_4bit = False
+
+        if precision == "int8":
+            load_in_8bit = True
+            logger.info("Quantization: 8-bit integer quantization enabled")
+            logger.info("  - Expected memory reduction: ~50%")
+        elif precision in ["int4", "nf4", "fp4"]:
+            load_in_4bit = True
+            try:
+                from transformers import BitsAndBytesConfig
+
+                # Configure 4-bit quantization
+                bnb_config = {
+                    "load_in_4bit": True,
+                    "bnb_4bit_compute_dtype": torch_dtype,
+                }
+
+                if precision == "nf4":
+                    bnb_config["bnb_4bit_quant_type"] = "nf4"
+                    logger.info("Quantization: 4-bit NormalFloat (nf4) quantization enabled")
+                elif precision == "fp4":
+                    bnb_config["bnb_4bit_quant_type"] = "fp4"
+                    logger.info("Quantization: 4-bit FloatingPoint (fp4) quantization enabled")
+                else:
+                    bnb_config["bnb_4bit_quant_type"] = "int4"
+                    logger.info("Quantization: 4-bit integer quantization enabled")
+
+                logger.info("  - Expected memory reduction: ~75%")
+                logger.info(f"  - Compute dtype: {torch_dtype}")
+
+                quantization_config = BitsAndBytesConfig(**bnb_config)
+            except ImportError:
+                logger.warning("BitsAndBytesConfig not available, falling back to fp16")
+                load_in_4bit = False
 
         # Get pipeline class
         pipeline_class = PIPELINE_MAPPING.get(pipeline_type, PIPELINE_MAPPING["Generic"])
@@ -216,15 +277,59 @@ class DreamBoothManager:
 
         try:
             # Load pipeline
-            logger.info(f"Loading from: {model_id}")
-            pipeline = pipeline_class.from_pretrained(
-                model_id,
-                torch_dtype=torch_dtype,
-                safety_checker=None,
-                requires_safety_checker=False,
-                use_safetensors=True,
-                variant="fp16" if precision == "f16" else None,
-            )
+            use_safetensors = settings.use_safetensors
+            logger.info("\nStarting model loading process...")
+            logger.info(f"Source: {model_id}")
+            logger.info(f"Format: {'Safetensors' if use_safetensors else 'PyTorch'}")
+
+            # Don't specify variant for bf16/bf32 as they don't have variant files
+            variant = "fp16" if precision == "f16" else None
+            if variant:
+                logger.info(f"Variant: {variant}")
+
+            # Prepare loading kwargs
+            load_kwargs: dict[str, Any] = {
+                "torch_dtype": torch_dtype,
+                "safety_checker": None,
+                "requires_safety_checker": False,
+                "use_safetensors": use_safetensors,
+                "variant": variant,
+                "low_cpu_mem_usage": low_cpu_mem_usage,
+            }
+
+            # Add device mapping if requested
+            if device_map_strategy:
+                load_kwargs["device_map"] = device_map_strategy
+                # Device mapping requires low_cpu_mem_usage=True
+                load_kwargs["low_cpu_mem_usage"] = True
+                logger.info(f"\nDevice Mapping Strategy: {device_map_strategy}")
+                if device_map_strategy == "balanced":
+                    logger.info("  - Distributes model layers across devices")
+                    logger.info("  - Uses both VRAM and system RAM")
+                    logger.info("  - Balances memory usage between devices")
+                elif device_map_strategy == "auto":
+                    logger.info("  - Fills VRAM first, then overflows to RAM")
+                    logger.info("  - Optimizes for performance")
+                else:
+                    logger.info(f"  - Custom strategy: {device_map_strategy}")
+
+            # Add quantization parameters if needed
+            if load_in_8bit:
+                load_kwargs["load_in_8bit"] = True
+                load_kwargs["device_map"] = (
+                    "balanced"  # Balanced is the only supported option in diffusers
+                )
+                # Quantization requires low_cpu_mem_usage=True
+                load_kwargs["low_cpu_mem_usage"] = True
+            elif load_in_4bit and quantization_config:
+                load_kwargs["quantization_config"] = quantization_config
+                load_kwargs["device_map"] = (
+                    "balanced"  # Balanced is the only supported option in diffusers
+                )
+                # Quantization requires low_cpu_mem_usage=True
+                load_kwargs["low_cpu_mem_usage"] = True
+
+            pipeline = pipeline_class.from_pretrained(model_id, **load_kwargs)
 
             # Apply memory optimizations
             if hasattr(pipeline, "vae") and pipeline.vae is not None:
@@ -246,11 +351,21 @@ class DreamBoothManager:
                         logger.debug(f"Could not enable xformers: {e}")
 
             # Apply CPU offloading or move to device
-            if use_cpu_offload and hasattr(pipeline, "enable_model_cpu_offload"):
+            # Skip device movement for models with device_map (quantized or device mapped)
+            if load_in_8bit or load_in_4bit or device_map_strategy:
+                logger.info("\n✓ Model distributed across devices with automatic mapping")
+            elif use_sequential_cpu_offload and hasattr(pipeline, "enable_sequential_cpu_offload"):
+                pipeline.enable_sequential_cpu_offload()
+                logger.info("\n✓ Sequential CPU offloading enabled")
+                logger.info("  - Minimal VRAM usage")
+                logger.info("  - Layers processed sequentially through CPU")
+            elif use_cpu_offload and hasattr(pipeline, "enable_model_cpu_offload"):
                 pipeline.enable_model_cpu_offload()
-                logger.info("Enabled CPU offloading")
+                logger.info("\n✓ Standard CPU offloading enabled")
+                logger.info("  - Inactive components moved to CPU")
             else:
                 pipeline = pipeline.to(self.device)
+                logger.info(f"\n✓ Model loaded to {self.device.upper()}")
 
             # Cache the pipeline
             self.cache.put(cache_key, pipeline)
@@ -258,11 +373,38 @@ class DreamBoothManager:
             # Update legacy cache for compatibility
             self._models[model_name] = pipeline
 
+            logger.info("\n" + "=" * 60)
+            logger.info("MODEL LOADING COMPLETE")
+            logger.info("=" * 60)
+
             return pipeline
 
         except Exception as e:
-            logger.error(f"Error loading model {model_name}: {e!s}")
-            raise
+            error_msg = str(e)
+
+            # Provide more helpful error messages
+            if "404" in error_msg or "not found" in error_msg.lower():
+                logger.error(f"Model '{model_name}' not found on HuggingFace Hub")
+                logger.error("Please check:")
+                logger.error("  1. The model ID is spelled correctly")
+                logger.error("  2. The model exists and is public")
+                logger.error("  3. You have internet connectivity")
+                raise ValueError(
+                    f"Model '{model_name}' not found. Please check the model ID."
+                ) from e
+            elif "401" in error_msg or "unauthorized" in error_msg.lower():
+                logger.error(f"Access denied for model '{model_name}'")
+                logger.error("This model may be private or require authentication")
+                raise ValueError(
+                    f"Access denied for model '{model_name}'. It may be private."
+                ) from e
+            elif "connection" in error_msg.lower() or "timeout" in error_msg.lower():
+                logger.error("Network connection error")
+                logger.error("Please check your internet connection")
+                raise ConnectionError("Failed to connect to HuggingFace Hub") from e
+            else:
+                logger.error(f"Error loading model {model_name}: {e!s}")
+                raise
 
     def load(
         self,
@@ -270,6 +412,9 @@ class DreamBoothManager:
         pipeline_type: str = "Generic",
         precision: str = "f16",
         use_cpu_offload: bool = False,
+        use_sequential_cpu_offload: bool = False,
+        device_map_strategy: Optional[str] = None,
+        low_cpu_mem_usage: bool = False,
         enable_attention_slicing: bool = True,
         enable_vae_slicing: bool = True,
         enable_vae_tiling: bool = False,
@@ -280,6 +425,9 @@ class DreamBoothManager:
             pipeline_type=pipeline_type,
             precision=precision,
             use_cpu_offload=use_cpu_offload,
+            use_sequential_cpu_offload=use_sequential_cpu_offload,
+            device_map_strategy=device_map_strategy,
+            low_cpu_mem_usage=low_cpu_mem_usage,
             enable_attention_slicing=enable_attention_slicing,
             enable_vae_slicing=enable_vae_slicing,
             enable_vae_tiling=enable_vae_tiling,

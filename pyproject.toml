@@ -37,6 +37,8 @@ dependencies = [
     "xformers; sys_platform == 'linux'",
     "safetensors",
     "tqdm",
+    "bitsandbytes>=0.41.0",  # For 8-bit and 4-bit quantization
+    "optimum>=1.16.0",  # HuggingFace optimization library
     "requests",
     "filelock",
     "typing-extensions",
@@ -295,7 +297,7 @@ markers = [
 ]
 # timeout = 300
 # timeout_method = "thread"
-asyncio_default_fixture_loop_scope = "function"
+# asyncio_default_fixture_loop_scope = "function"  # Requires pytest-asyncio >= 0.23
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",

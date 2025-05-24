@@ -36,6 +36,7 @@ class DreamBoothTrainer:
         gradient_accumulation_steps: int = 1,
         mixed_precision: str = "no",
         use_cpu_offload: bool = False,
+        use_sequential_cpu_offload: bool = False,
         gradient_checkpointing: bool = True,
         max_grad_norm: float = 1.0,
         seed: int = 42,
@@ -58,6 +59,7 @@ class DreamBoothTrainer:
         self.gradient_accumulation_steps = gradient_accumulation_steps
         self.mixed_precision = mixed_precision
         self.use_cpu_offload = use_cpu_offload
+        self.use_sequential_cpu_offload = use_sequential_cpu_offload
         self.gradient_checkpointing = gradient_checkpointing
         self.max_grad_norm = max_grad_norm
         self.seed = seed
@@ -97,6 +99,8 @@ class DreamBoothTrainer:
             self.model_name,
             precision="f16" if self.mixed_precision == "fp16" else "f32",
             use_cpu_offload=self.use_cpu_offload,
+            use_sequential_cpu_offload=self.use_sequential_cpu_offload,
+            low_cpu_mem_usage=False,  # Training doesn't need this as model is already loaded
         )
 
         # Enable memory efficient attention
@@ -154,8 +158,8 @@ class DreamBoothTrainer:
         checkpoint_dir = self.output_dir / f"checkpoint-{step}"
         checkpoint_dir.mkdir(exist_ok=True)
 
-        # Save models
-        self.pipeline.save_pretrained(checkpoint_dir)
+        # Save models using safetensors
+        self.pipeline.save_pretrained(checkpoint_dir, safe_serialization=True)
 
         # Save optimizer and scheduler states
         torch.save(  # nosec B614
@@ -413,7 +417,7 @@ class DreamBoothTrainer:
             # Save final model
             if self.accelerator.is_main_process:
                 logger.info(f"Saving final model to {self.output_dir}")
-                self.pipeline.save_pretrained(self.output_dir)
+                self.pipeline.save_pretrained(self.output_dir, safe_serialization=True)
 
                 # Save training info
                 training_info = {
@@ -448,7 +452,7 @@ class DreamBoothTrainer:
 
 def train_model(
     model_key,
-    custom_model,
+    custom_model,  # Keep for backward compatibility but ignore
     subject_name,
     img_paths,
     train_steps,
@@ -456,10 +460,11 @@ def train_model(
     precision,
     pipeline_type,
     cpu_offload,
+    sequential_cpu_offload=False,
 ):
-    """Legacy training function for backward compatibility."""
-    # Determine model name
-    model_name = custom_model if model_key == "custom" else model_key
+    """Train a DreamBooth model with the specified parameters."""
+    # Use model_key directly as it now contains the final model ID
+    model_name = model_key
 
     # Map precision to mixed_precision format
     mixed_precision = "fp16" if precision in ["f16", "bf16"] else "no"
@@ -472,6 +477,7 @@ def train_model(
         train_batch_size=batch_size,
         mixed_precision=mixed_precision,
         use_cpu_offload=cpu_offload,
+        use_sequential_cpu_offload=sequential_cpu_offload,
         learning_rate=settings.default_learning_rate,
     )
 

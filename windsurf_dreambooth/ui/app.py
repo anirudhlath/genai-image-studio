@@ -23,33 +23,34 @@ def generate_image(*args):
     return _generate_image(*args)
 
 
-def fetch_hf_models(filter="stable-diffusion", limit=20):
+def fetch_hf_models(limit=30):
     """Fetch models from HuggingFace Hub.
 
     Args:
-        filter: String to filter model types
         limit: Maximum number of models to return
 
     Returns:
         List of model IDs
     """
-    from ..config.constants import AVAILABLE_MODELS
-
-    # Always include the base models
-    base_models = list(AVAILABLE_MODELS.keys())
-    logger.info(f"Including base models: {base_models}")
-
     try:
         from huggingface_hub import HfApi
 
         api = HfApi()
-        models = api.list_models(task="text-to-image", sort="downloads", direction=-1, limit=100)
-        model_ids = [m.modelId for m in models if filter.lower() in m.modelId.lower()]
+        models = api.list_models(task="text-to-image", sort="downloads", direction=-1, limit=limit)
+        model_ids = [m.modelId for m in models]
         logger.info(f"Found {len(model_ids)} models from HuggingFace Hub")
-        return base_models + model_ids[:limit]
+
+        return model_ids
     except Exception as e:
         logger.warning(f"Failed to fetch models from HuggingFace Hub: {e!s}")
-        return base_models
+        # Return some popular HuggingFace models as fallback
+        return [
+            "runwayml/stable-diffusion-v1-5",
+            "stabilityai/stable-diffusion-2-1",
+            "stabilityai/stable-diffusion-xl-base-1.0",
+            "CompVis/stable-diffusion-v1-4",
+            "prompthero/openjourney",
+        ]
 
 
 def load_finetuned_model(model_name, progress=gr.Progress()):
@@ -100,23 +101,28 @@ def create_app():
             logger.warning("No models found, using default placeholder")
             models = ["No models available - please check your connection"]
 
-        from ..config.constants import PIPELINE_MAPPING, PRECISION_OPTIONS, SCHEDULER_MAPPING
+        from ..config.constants import (
+            DEVICE_MAP_STRATEGIES,
+            PIPELINE_MAPPING,
+            PRECISION_OPTIONS,
+            SCHEDULER_MAPPING,
+        )
 
         # Model selection row
         with gr.Row():
             with gr.Column(scale=2):
                 global_model = gr.Dropdown(
                     choices=models,
-                    label="Base Model",
+                    label="HuggingFace Model",
                     allow_custom_value=True,
-                    info="Select a pre-configured model or use custom model ID",
+                    info="Select from popular models",
                     interactive=True,
                 )
             with gr.Column(scale=2):
                 global_custom_model = gr.Textbox(
                     label="Custom Model ID (Optional)",
-                    placeholder="e.g. runwayml/stable-diffusion-v1-5",
-                    info="Override base model with HuggingFace model ID",
+                    placeholder="e.g. prompthero/openjourney-v4",
+                    info="Override with any HuggingFace model ID",
                 )
             with gr.Column(scale=3), gr.Group():
                 gr.Markdown("**Advanced Settings**")
@@ -132,7 +138,7 @@ def create_app():
                         choices=PRECISION_OPTIONS,
                         value="f16",
                         label="Precision",
-                        info="f16=fast, f32=quality",
+                        info="f16=fast, f32=quality, int8/int4=memory saving",
                         interactive=True,
                     )
                 with gr.Row():
@@ -146,6 +152,25 @@ def create_app():
                     global_cpu_offload = gr.Checkbox(
                         value=False, label="CPU Offload", info="Save VRAM (slower)"
                     )
+                with gr.Row():
+                    global_sequential_cpu_offload = gr.Checkbox(
+                        value=False,
+                        label="Sequential CPU Offload",
+                        info="More aggressive VRAM saving (much slower)",
+                    )
+                    global_low_cpu_mem_usage = gr.Checkbox(
+                        value=False,
+                        label="Low CPU Memory Usage",
+                        info="Load weights sequentially (reduces peak memory)",
+                    )
+                with gr.Row():
+                    global_device_map = gr.Dropdown(
+                        choices=["None", *DEVICE_MAP_STRATEGIES],
+                        value="None",
+                        label="Device Map Strategy",
+                        info="How to distribute model across devices",
+                        interactive=True,
+                    )
 
         # Create tabs
         train_tab, train_inputs, train_outputs = create_train_tab()
@@ -158,6 +183,12 @@ def create_app():
             imgs,
             train_steps,
             batch_size,
+            model,
+            custom_model,
+            precision,
+            pipeline_type,
+            cpu_offload,
+            sequential_cpu_offload,
             progress=gr.Progress(),
         ):
             """Train model with progress updates."""
@@ -196,16 +227,14 @@ def create_app():
                     progress(step / total_steps, desc=f"Training step {step}/{total_steps}")
                     time.sleep(0.1)  # Simulate training time
 
-                # Call actual training function - get global settings
-                model = global_model.value
-                custom_model = global_custom_model.value
-                precision = global_precision.value
-                pipeline_type = global_pipeline.value
-                cpu_offload = global_cpu_offload.value
+                # Use custom model if provided, otherwise use dropdown selection
+                final_model = (
+                    custom_model.strip() if custom_model and custom_model.strip() else model
+                )
 
                 result = _train_model(
-                    model,
-                    custom_model,
+                    final_model,
+                    "",  # Pass empty string for custom_model (legacy parameter)
                     name,
                     imgs,
                     train_steps,
@@ -213,6 +242,7 @@ def create_app():
                     precision,
                     pipeline_type,
                     cpu_offload,
+                    sequential_cpu_offload,
                 )
 
                 progress(1.0, desc="Training complete!")
@@ -231,6 +261,12 @@ def create_app():
                 train_inputs["imgs"],
                 train_inputs["train_steps"],
                 train_inputs["batch_size"],
+                global_model,
+                global_custom_model,
+                global_precision,
+                global_pipeline,
+                global_cpu_offload,
+                global_sequential_cpu_offload,
             ],
             [
                 train_outputs["output"],
@@ -249,6 +285,15 @@ def create_app():
             width,
             height,
             seed,
+            model,
+            custom_model,
+            precision,
+            pipeline_type,
+            cpu_offload,
+            sequential_cpu_offload,
+            device_map,
+            low_cpu_mem_usage,
+            scheduler,
             progress=gr.Progress(),
         ):
             """Generate images with progress updates."""
@@ -260,17 +305,17 @@ def create_app():
                     progress(step / steps, desc=f"Generating... Step {step}/{steps}")
                     time.sleep(0.05)  # Simulate generation time
 
-                # Call actual generation function - get global settings
-                model = global_model.value
-                custom_model = global_custom_model.value
-                precision = global_precision.value
-                pipeline_type = global_pipeline.value
-                cpu_offload = global_cpu_offload.value
-                scheduler = global_scheduler.value
+                # Use custom model if provided, otherwise use dropdown selection
+                final_model = (
+                    custom_model.strip() if custom_model and custom_model.strip() else model
+                )
+
+                # Convert "None" to None for device_map
+                device_map_strategy = None if device_map == "None" else device_map
 
                 images = _generate_image(
-                    model,
-                    custom_model,
+                    final_model,
+                    "",  # Pass empty string for custom_model (legacy parameter)
                     name,
                     prompt,
                     steps,
@@ -283,6 +328,9 @@ def create_app():
                     height,
                     seed,
                     cpu_offload,
+                    sequential_cpu_offload,
+                    device_map_strategy,
+                    low_cpu_mem_usage,
                 )
 
                 progress(1.0, desc="Generation complete!")
@@ -305,6 +353,15 @@ def create_app():
                 generate_inputs["width"],
                 generate_inputs["height"],
                 generate_inputs["seed"],
+                global_model,
+                global_custom_model,
+                global_precision,
+                global_pipeline,
+                global_cpu_offload,
+                global_sequential_cpu_offload,
+                global_device_map,
+                global_low_cpu_mem_usage,
+                global_scheduler,
             ],
             [generate_outputs["gallery"]],
             queue=True,

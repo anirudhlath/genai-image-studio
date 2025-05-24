@@ -88,6 +88,9 @@ def generate_image(  # type: ignore
     height,
     seed,
     cpu_offload,
+    sequential_cpu_offload=False,
+    device_map_strategy=None,
+    low_cpu_mem_usage=False,
 ):
     """Generate images using the specified model and parameters.
 
@@ -106,6 +109,9 @@ def generate_image(  # type: ignore
         height: Image height
         seed: Random seed for reproducibility
         cpu_offload: Whether to enable CPU offloading
+        sequential_cpu_offload: Whether to enable sequential CPU offloading
+        device_map_strategy: Device mapping strategy for model loading
+        low_cpu_mem_usage: Whether to enable low CPU memory usage mode
 
     Returns:
         List of generated image paths
@@ -122,8 +128,8 @@ def generate_image(  # type: ignore
             logger.error("No prompt provided")
             return []
 
-        # Determine the model to use
-        model_id = custom_model if model_key == "custom" and custom_model else model_key
+        # Use model_key directly as it now contains the final model ID
+        model_id = model_key
 
         if not model_id:
             logger.error("No model selected")
@@ -139,7 +145,15 @@ def generate_image(  # type: ignore
             return []
 
         # Load the model
-        pipeline = manager.load(model_id, pipeline_type, precision, cpu_offload)
+        pipeline = manager.load(
+            model_id,
+            pipeline_type,
+            precision,
+            cpu_offload,
+            sequential_cpu_offload,
+            device_map_strategy,
+            low_cpu_mem_usage,
+        )
 
         # Apply the selected scheduler if it exists
         if scheduler_name in SCHEDULER_MAPPING:
