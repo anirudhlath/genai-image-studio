@@ -6,34 +6,120 @@ build-backend = "setuptools.build_meta"
 name = "windsurf-dreambooth"
 version = "0.1.0"
 description = "DreamBooth Studio - A modular application for fine-tuning and generating images with Diffusion models"
+requires-python = ">=3.9,<3.12"
+
+# All dependencies are explicitly listed with version constraints for:
+# 1. Security - avoid known vulnerabilities in older versions
+# 2. Compatibility - ensure all packages work together
+# 3. Reproducibility - consistent environments across installations
+# 4. Stability - avoid breaking changes from major version updates
 dependencies = [
-    "torch",
-    "torchvision",
-    "setuptools",
-    "fastapi",
-    "uvicorn[standard]",
-    "diffusers",
-    "transformers",
-    "accelerate",
-    "python-multipart",
-    "pillow",
-    "numpy",
-    "gradio",
-    "huggingface-hub",
-    "huggingface_hub[hf_xet]",
-    "loguru",
-    "sentencepiece",
-    "protobuf"
+    "torch>=2.0.0,<2.3.0",
+    "torchvision>=0.15.0,<0.18.0",
+    "setuptools>=61.0",
+    "fastapi>=0.104.0,<0.115.0",
+    "uvicorn[standard]>=0.24.0,<0.31.0",
+    "diffusers>=0.25.0,<0.28.0",
+    "transformers>=4.36.0,<4.42.0",
+    "accelerate>=0.25.0,<0.31.0",
+    "python-multipart>=0.0.6,<0.0.10",
+    "pillow>=10.0.0,<10.4.0",
+    "numpy>=1.24.0,<1.27.0",
+    "gradio>=4.0.0,<4.20.0",
+    "huggingface-hub>=0.19.0,<0.24.0",
+    "loguru>=0.7.0,<0.8.0",
+    "sentencepiece>=0.1.99,<0.3.0",
+    "protobuf>=3.20.0,<5.0.0",
+    "psutil>=5.9.0,<6.0.0",
+    "pydantic>=2.0.0,<2.8.0",
+    "pydantic-settings>=2.0.0,<2.10.0",
+    "python-dotenv>=1.0.0,<1.1.0",
+    "xformers>=0.0.22,<0.0.26; sys_platform == 'linux'",
+    "safetensors>=0.4.0,<0.5.0",
+    "tqdm>=4.65.0,<4.70.0",
+    "requests>=2.31.0,<2.33.0",
+    "filelock>=3.12.0,<3.20.0",
+    "typing-extensions>=4.7.0,<4.14.0",
+    "pyyaml>=6.0,<6.1",
+    "packaging>=23.0,<25.0",
+    "regex>=2023.12.0,<2025.0.0",
+    "tokenizers>=0.15.0,<0.20.0",
+    # scipy, matplotlib, pandas, scikit-learn are installed as dependencies of other packages
+    # tensorboard is optional for training visualization
+    "httpx>=0.24.0,<0.29.0",
+    "websockets>=11.0,<14.0",
+    "aiofiles>=23.0.0,<25.0.0",
+    "jinja2>=3.1.0,<3.2.0",
+    "markupsafe>=2.1.0,<2.2.0",
+    "click>=8.1.0,<8.2.0",
+    "rich>=13.0.0,<14.1.0",
+    "typer>=0.9.0,<0.16.0",
+    "watchdog>=3.0.0,<6.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing framework
+    "pytest>=7.4.0,<8.3.0",
+    "pytest-asyncio>=0.21.0,<0.24.0",
+    "pytest-cov>=4.1.0,<5.1.0",
+    "pytest-mock>=3.11.0,<3.15.0",
+    "pytest-timeout>=2.1.0,<2.3.0",
+    "pytest-xdist>=3.3.0,<3.6.0",
+    "pytest-env>=0.8.0,<1.2.0",
+    "pytest-benchmark>=4.0.0,<4.1.0",
+    "pytest-sugar>=0.9.0,<1.1.0",
+    "hypothesis>=6.80.0,<6.100.0",
+    "factory-boy>=3.3.0,<3.4.0",
+    "freezegun>=1.2.0,<1.5.0",
+    "responses>=0.23.0,<0.26.0",
+    "faker>=19.0.0,<26.0.0",
+    
+    # Code quality tools
+    "black>=23.0.0,<24.5.0",
+    "isort>=5.12.0,<5.14.0",
+    "flake8>=6.0.0,<7.1.0",
+    "flake8-docstrings>=1.7.0,<1.8.0",
+    "flake8-bugbear>=23.0.0,<24.5.0",
+    "flake8-comprehensions>=3.14.0,<3.15.0",
+    "flake8-simplify>=0.20.0,<0.22.0",
+    "pylint>=2.17.0,<3.3.0",
+    "mypy>=1.5.0,<1.11.0",
+    "types-requests>=2.31.0,<2.33.0",
+    "types-pyyaml>=6.0.0,<6.1.0",
+    "types-python-dateutil>=2.8.0,<2.10.0",
+    
+    # Development tools
+    "pre-commit>=3.3.0,<3.8.0",
+    "ipython>=8.14.0,<8.27.0",
+    "ipdb>=0.13.0,<0.14.0",
+    "jupyter>=1.0.0,<1.1.0",
+    "notebook>=7.0.0,<7.3.0",
+    
+    # Documentation
+    "sphinx>=7.1.0,<7.4.0",
+    "sphinx-rtd-theme>=1.3.0,<2.1.0",
+    "sphinx-autodoc-typehints>=1.24.0,<2.3.0",
+    "myst-parser>=2.0.0,<3.1.0",
+    
+    # Security scanning
+    "bandit>=1.7.0,<1.8.0",
+    "safety>=2.3.0,<3.3.0",
+    
+    # Performance profiling
+    "py-spy>=0.3.0,<0.4.0",
+    "memory-profiler>=0.61.0,<0.62.0",
+    "line-profiler>=4.1.0,<4.2.0"
 ]
 
 [tool.uv.sources]
 torch = [
   { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
-  { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
+  { index = "pytorch-cu121", marker = "sys_platform == 'linux'" },
 ]
 torchvision = [
   { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
-  { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
+  { index = "pytorch-cu121", marker = "sys_platform == 'linux'" },
 ]
 
 [[tool.uv.index]]
@@ -42,10 +128,68 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [[tool.uv.index]]
-name = "pytorch-cu128"
-url = "https://download.pytorch.org/whl/cu128"
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
 explicit = true
 
 # Exclude non-package directories to avoid multiple-package discovery
 [tool.setuptools.packages.find]
-exclude = ["outputs", "outputs.*", "frontend", "frontend.*", "finetuned_models", "finetuned_models.*"]
+exclude = ["outputs", "outputs.*", "frontend", "frontend.*", "finetuned_models", "finetuned_models.*", "uploads", "uploads.*", "model_cache", "model_cache.*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=windsurf_dreambooth",
+    "--cov-branch",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-fail-under=40",
+    "--maxfail=1",
+    "--tb=short",
+    "--dist=loadgroup",
+    # "-n=auto"  # Uncomment to enable parallel testing
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m not slow')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "gpu: marks tests that require GPU",
+    "model: marks tests that load models (memory intensive)",
+    "flaky: marks tests that might fail intermittently"
+]
+timeout = 300
+timeout_method = "thread"
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::FutureWarning",
+    "error::UserWarning"
+]
+env = [
+    "TESTING=1",
+    "LOG_LEVEL=DEBUG"
+]
