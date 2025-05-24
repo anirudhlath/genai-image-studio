@@ -1,10 +1,12 @@
-"""
-Logging configuration for the application
-"""
+"""Logging configuration for the application."""
 
 import sys
+from typing import TYPE_CHECKING, Optional
 
-from diffusers import logging as diffusers_logging
+if TYPE_CHECKING:
+    from loguru import Logger
+
+from diffusers.utils import logging as diffusers_logging
 from loguru import logger
 
 # Configure logger to stdout
@@ -19,9 +21,9 @@ diffusers_logging.enable_progress_bar()
 logger.info("DreamBooth App initialization complete, ready to serve.")
 
 
-def get_logger(name: str = None):
+def get_logger(name: Optional[str] = None) -> "Logger":
     """Get a logger instance."""
     return logger
 
 
-__all__ = ["logger", "get_logger"]
+__all__ = ["get_logger", "logger"]

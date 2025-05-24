@@ -1,10 +1,6 @@
-"""
-Main application interface for the DreamBooth app
-"""
+"""Main application interface for the DreamBooth app."""
 
-import threading
 import time
-from pathlib import Path
 
 import gradio as gr
 from PIL import Image
@@ -28,8 +24,7 @@ def generate_image(*args):
 
 
 def fetch_hf_models(filter="stable-diffusion", limit=20):
-    """
-    Fetch models from HuggingFace Hub
+    """Fetch models from HuggingFace Hub.
 
     Args:
         filter: String to filter model types
@@ -53,16 +48,16 @@ def fetch_hf_models(filter="stable-diffusion", limit=20):
         logger.info(f"Found {len(model_ids)} models from HuggingFace Hub")
         return base_models + model_ids[:limit]
     except Exception as e:
-        logger.warning(f"Failed to fetch models from HuggingFace Hub: {str(e)}")
+        logger.warning(f"Failed to fetch models from HuggingFace Hub: {e!s}")
         return base_models
 
 
 def load_finetuned_model(model_name, progress=gr.Progress()):
-    """
-    Load a fine-tuned model into memory with progress
+    """Load a fine-tuned model into memory with progress.
 
     Args:
         model_name: Name of the model to load
+        progress: Gradio progress indicator
 
     Returns:
         Status message
@@ -75,13 +70,12 @@ def load_finetuned_model(model_name, progress=gr.Progress()):
         logger.info(f"Loaded model {model_name}")
         return f"✅ Loaded model {model_name}"
     except Exception as e:
-        logger.error(f"Failed to load model: {str(e)}")
-        return f"❌ Error loading model: {str(e)}"
+        logger.error(f"Failed to load model: {e!s}")
+        return f"❌ Error loading model: {e!s}"
 
 
 def create_app():
-    """
-    Create and configure the Gradio application
+    """Create and configure the Gradio application.
 
     Returns:
         Configured Gradio interface
@@ -91,7 +85,7 @@ def create_app():
         gr.Markdown(
             """
             # DreamBooth Studio
-            
+
             Fine-tune and generate images with Diffusion models. Select a tab below to get started.
             """
         )
@@ -143,7 +137,6 @@ def create_app():
 
                 # Update UI
                 progress(0, desc="Initializing training...")
-                training_info = f"### Training Started\n\n- Model: {model or custom_model}\n- Steps: {train_steps}\n- Batch Size: {batch_size}"
 
                 # Show image previews
                 image_paths = []
@@ -151,7 +144,7 @@ def create_app():
                     try:
                         img = Image.open(img_file.name)
                         image_paths.append(img)
-                    except:
+                    except:  # nosec B110
                         pass
 
                 # Simulate progress updates for demo
@@ -180,8 +173,8 @@ def create_app():
                 return result, image_paths, final_info
 
             except Exception as e:
-                logger.error(f"Training error: {str(e)}")
-                return f"Error: {str(e)}", None, f"### Training Failed\n\n{str(e)}"
+                logger.error(f"Training error: {e!s}")
+                return f"Error: {e!s}", None, f"### Training Failed\n\n{e!s}"
 
         # Set up training tab events
         train_inputs["train_button"].click(
@@ -226,7 +219,6 @@ def create_app():
             """Generate images with progress updates."""
             try:
                 progress(0, desc="Loading model...")
-                status_text = f"### Generating Images\n\n- Model: {model or custom_model}\n- Steps: {steps}\n- Batch: {batch_size}"
 
                 # Simulate progress for each step
                 for step in range(0, steps, 5):
@@ -257,8 +249,8 @@ def create_app():
                 return images, final_status
 
             except Exception as e:
-                logger.error(f"Generation error: {str(e)}")
-                return None, f"### Generation Failed\n\n{str(e)}"
+                logger.error(f"Generation error: {e!s}")
+                return None, f"### Generation Failed\n\n{e!s}"
 
         # Set up generation tab events
         generate_inputs["generate_button"].click(
@@ -297,9 +289,8 @@ def create_app():
     return demo
 
 
-def launch_app(server_name="0.0.0.0", server_port=8000, queue=True):
-    """
-    Launch the DreamBooth application
+def launch_app(server_name="0.0.0.0", server_port=8000, queue=True):  # nosec B104
+    """Launch the DreamBooth application.
 
     Args:
         server_name: Server hostname

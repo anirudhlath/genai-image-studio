@@ -2,18 +2,17 @@
 
 import os
 from pathlib import Path
-from typing import Optional
 
-import torch
 from pydantic import Field
 from pydantic_settings import BaseSettings
+import torch
 
 
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
 
     # API Settings
-    api_host: str = Field("0.0.0.0", env="API_HOST")
+    api_host: str = Field("0.0.0.0", env="API_HOST")  # nosec B104
     api_port: int = Field(8000, env="API_PORT")
     api_workers: int = Field(1, env="API_WORKERS")
     cors_origins: list[str] = Field(["http://localhost:3000"], env="CORS_ORIGINS")
@@ -54,11 +53,13 @@ class Settings(BaseSettings):
     )
 
     # Gradio Settings
-    gradio_server_name: str = Field("0.0.0.0", env="GRADIO_SERVER_NAME")
+    gradio_server_name: str = Field("0.0.0.0", env="GRADIO_SERVER_NAME")  # nosec B104
     gradio_server_port: int = Field(7860, env="GRADIO_SERVER_PORT")
     gradio_share: bool = Field(False, env="GRADIO_SHARE")
 
     class Config:
+        """Pydantic configuration."""
+
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False

@@ -1,18 +1,15 @@
-"""
-Training functionality for DreamBooth fine-tuning with improved memory efficiency and error handling.
-"""
+"""Training functionality for DreamBooth fine-tuning with improved memory efficiency and error handling."""
 
 import gc
-import os
-import uuid
 from pathlib import Path
-from typing import Callable, List, Optional, Union
+from typing import Callable, Optional, Union
+import uuid
 
-import torch
-import torch.nn.functional as F
 from accelerate import Accelerator
 from accelerate.utils import set_seed
+import torch
 from torch.cuda.amp import GradScaler, autocast
+import torch.nn.functional
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import get_scheduler
@@ -161,7 +158,7 @@ class DreamBoothTrainer:
         self.pipeline.save_pretrained(checkpoint_dir)
 
         # Save optimizer and scheduler states
-        torch.save(
+        torch.save(  # nosec B614
             {
                 "step": step,
                 "optimizer_state_dict": self.optimizer.state_dict(),
@@ -207,8 +204,8 @@ class DreamBoothTrainer:
 
     def train(
         self,
-        instance_images: List[Union[str, Path]],
-        class_images: Optional[List[Union[str, Path]]] = None,
+        instance_images: list[Union[str, Path]],
+        class_images: Optional[list[Union[str, Path]]] = None,
         progress_callback: Optional[Callable[[int, int], None]] = None,
     ):
         """Train the model with provided images."""
@@ -275,7 +272,7 @@ class DreamBoothTrainer:
             if self.resume_from_checkpoint:
                 checkpoint_path = Path(self.resume_from_checkpoint)
                 if checkpoint_path.exists():
-                    state = torch.load(checkpoint_path / "training_state.pt")
+                    state = torch.load(checkpoint_path / "training_state.pt")  # nosec B614
                     starting_step = state["step"]
                     self.optimizer.load_state_dict(state["optimizer_state_dict"])
                     self.lr_scheduler.load_state_dict(state["scheduler_state_dict"])
@@ -337,7 +334,7 @@ class DreamBoothTrainer:
                                 ).sample
 
                                 # Calculate loss
-                                loss = F.mse_loss(
+                                loss = torch.nn.functional.mse_loss(
                                     model_pred.float(), noise.float(), reduction="mean"
                                 )
 
@@ -360,7 +357,9 @@ class DreamBoothTrainer:
                             ).sample
 
                             # Calculate loss
-                            loss = F.mse_loss(model_pred.float(), noise.float(), reduction="mean")
+                            loss = torch.nn.functional.mse_loss(
+                                model_pred.float(), noise.float(), reduction="mean"
+                            )
 
                             # Backward pass
                             self.accelerator.backward(loss)
@@ -390,15 +389,17 @@ class DreamBoothTrainer:
                             progress_callback(global_step, self.num_train_steps)
 
                         # Save checkpoint
-                        if global_step % self.save_steps == 0:
-                            if self.accelerator.is_main_process:
-                                self._save_checkpoint(global_step)
-                                logger.info(f"Saved checkpoint at step {global_step}")
+                        if global_step % self.save_steps == 0 and self.accelerator.is_main_process:
+                            self._save_checkpoint(global_step)
+                            logger.info(f"Saved checkpoint at step {global_step}")
 
                         # Run validation
-                        if self.validation_steps > 0 and global_step % self.validation_steps == 0:
-                            if self.accelerator.is_main_process:
-                                self._validate(global_step)
+                        if (
+                            self.validation_steps > 0
+                            and global_step % self.validation_steps == 0
+                            and self.accelerator.is_main_process
+                        ):
+                            self._validate(global_step)
 
                         # Clear cache periodically
                         if global_step % 100 == 0:
@@ -427,7 +428,7 @@ class DreamBoothTrainer:
 
                 import json
 
-                with open(self.output_dir / "training_info.json", "w") as f:
+                with (self.output_dir / "training_info.json").open("w") as f:
                     json.dump(training_info, f, indent=2)
 
             logger.info("Training completed successfully!")
@@ -436,7 +437,7 @@ class DreamBoothTrainer:
             logger.error("GPU out of memory! Try reducing batch size or enabling CPU offload.")
             raise
         except Exception as e:
-            logger.error(f"Training failed: {str(e)}")
+            logger.error(f"Training failed: {e!s}")
             raise
         finally:
             # Cleanup
@@ -456,9 +457,7 @@ def train_model(
     pipeline_type,
     cpu_offload,
 ):
-    """
-    Legacy training function for backward compatibility.
-    """
+    """Legacy training function for backward compatibility."""
     # Determine model name
     model_name = custom_model if model_key == "custom" else model_key
 
@@ -481,4 +480,4 @@ def train_model(
         trainer.train(instance_images=img_paths)
         return f"Training complete! Model saved to: {trainer.output_dir}"
     except Exception as e:
-        return f"Error during training: {str(e)}"
+        return f"Error during training: {e!s}"

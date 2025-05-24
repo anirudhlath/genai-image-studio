@@ -1,17 +1,15 @@
-"""
-DreamBooth Studio - Main Entry Point
+"""DreamBooth Studio - Main Entry Point.
 
 This is the main entry point for the DreamBooth Studio application.
 It can run in different modes:
 - gradio: Gradio UI only (default)
-- api: FastAPI REST API only  
+- api: FastAPI REST API only
 - both: Both Gradio and API simultaneously
 """
+
 import argparse
-import asyncio
-import sys
-import threading
 from pathlib import Path
+import threading
 
 import uvicorn
 
@@ -21,30 +19,29 @@ from windsurf_dreambooth.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def run_gradio():
+def run_gradio() -> None:
     """Run Gradio interface."""
     from windsurf_dreambooth.ui.app import launch_app
-    
+
     logger.info(f"Starting Gradio interface on port {settings.gradio_server_port}")
     launch_app(
         server_name=settings.gradio_server_name,
         server_port=settings.gradio_server_port,
-        share=settings.gradio_share,
-        queue=True
+        queue=True,
     )
 
 
-def run_api():
+def run_api() -> None:
     """Run FastAPI REST API."""
     from windsurf_dreambooth.api.app import app
     from windsurf_dreambooth.api.auth import RateLimitMiddleware, SecurityHeadersMiddleware
-    
+
     # Add middleware
     app.add_middleware(RateLimitMiddleware, calls=100, window=60)
     app.add_middleware(SecurityHeadersMiddleware)
-    
+
     logger.info(f"Starting FastAPI on {settings.api_host}:{settings.api_port}")
-    
+
     uvicorn.run(
         app,
         host=settings.api_host,
@@ -54,17 +51,17 @@ def run_api():
     )
 
 
-def run_both():
+def run_both() -> None:
     """Run both Gradio and FastAPI simultaneously."""
     # Run API in a separate thread
     api_thread = threading.Thread(target=run_api, daemon=True)
     api_thread.start()
-    
+
     # Run Gradio in main thread
     run_gradio()
 
 
-def create_env_file():
+def create_env_file() -> None:
     """Create a template .env file if it doesn't exist."""
     env_file = Path(".env")
     if not env_file.exists():
@@ -117,34 +114,30 @@ LOG_LEVEL=INFO
         logger.info("Created .env template file. Please update with your settings.")
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="DreamBooth Studio")
     parser.add_argument(
         "--mode",
         choices=["gradio", "api", "both"],
         default="gradio",
-        help="Run mode: gradio (UI only), api (REST API only), or both"
+        help="Run mode: gradio (UI only), api (REST API only), or both",
     )
-    parser.add_argument(
-        "--create-env",
-        action="store_true",
-        help="Create a template .env file"
-    )
-    
+    parser.add_argument("--create-env", action="store_true", help="Create a template .env file")
+
     args = parser.parse_args()
-    
+
     if args.create_env:
         create_env_file()
         return
-    
+
     # Setup directories
     settings.setup_directories()
-    
+
     # Log startup info
     logger.info(f"Starting DreamBooth Studio in {args.mode} mode")
     logger.info(f"Device: {'CUDA' if settings.device == 'cuda' else 'CPU'}")
-    
+
     # Run based on mode
     if args.mode == "gradio":
         run_gradio()
