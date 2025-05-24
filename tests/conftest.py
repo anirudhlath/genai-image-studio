@@ -1,13 +1,13 @@
 """Pytest configuration and shared fixtures."""
 
 import asyncio
-import tempfile
 from pathlib import Path
+import tempfile
 from unittest.mock import Mock
 
-import pytest
 from faker import Faker
 from hypothesis import strategies as st
+import pytest
 
 # Initialize faker
 fake = Faker()
@@ -74,8 +74,10 @@ def mock_api_client():
 @st.composite
 def image_dimensions(draw):
     """Generate valid image dimensions."""
-    width = draw(st.integers(min_value=64, max_value=2048).filter(lambda x: x % 64 == 0))
-    height = draw(st.integers(min_value=64, max_value=2048).filter(lambda x: x % 64 == 0))
+    # Use sampled_from for more reliable generation
+    valid_sizes = [64, 128, 256, 512, 768, 1024, 1536, 2048]
+    width = draw(st.sampled_from(valid_sizes))
+    height = draw(st.sampled_from(valid_sizes))
     return width, height
 
 

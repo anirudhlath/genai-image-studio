@@ -1,12 +1,11 @@
 """Example tests showcasing advanced testing features."""
 
+from datetime import datetime
 import time
-from datetime import datetime, timedelta
 
-import pytest
 from freezegun import freeze_time
 from hypothesis import given, settings
-from hypothesis import strategies as st
+import pytest
 
 from tests.conftest import image_dimensions, training_params
 
@@ -63,7 +62,7 @@ class TestAdvancedFeatures:
         assert params["batch_size"] >= 1
         assert params["gradient_accumulation_steps"] >= 1
 
-    @freeze_time("2024-01-01 12:00:00")
+    @freeze_time("2024-01-01 12:00:00", ignore=["diffusers"])
     def test_with_frozen_time(self):
         """Test with mocked time."""
         start = datetime.now()
